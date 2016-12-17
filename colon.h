@@ -1,6 +1,6 @@
 #ifndef COLON_H
 #define COLON_H
-
+//ruibinma
 
 #include "object.h"
 
