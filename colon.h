@@ -1,6 +1,6 @@
 #ifndef COLON_H
 #define COLON_H
-
+//ru
 #include "object.h"
 
 class Colon : public Object
