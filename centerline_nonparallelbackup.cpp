@@ -2,115 +2,6 @@
 #include <iostream>
 #include <vtkMath.h>
 #include <unistd.h>
-#include <vtkSMPTools.h>
-class CutCircleOp
-{
-public:
-    //input
-    vtkSmartPointer<vtkPolyData> model;
-    vtkSmartPointer<vtkPolyData> t_colon;
-    vtkSmartPointer<vtkDoubleArray> Tangents;
-    vtkSmartPointer<vtkDoubleArray> Normals;
-    vtkSmartPointer<vtkDoubleArray> Curvatures;
-    vtkSmartPointer<vtkDoubleArray> Radius;
-    //output
-    vtkSmartPointer<vtkPoints> CurvaturePoints;
-    vtkSmartPointer<vtkDoubleArray> Directions;
-    vtkSmartPointer<vtkIntArray> ViolationNums;
-    void operator()(vtkIdType begin, vtkIdType end)
-    {
-        for(vtkIdType i=begin; i<end; i++)
-        {
-            vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
-            cutter->SetInputData(t_colon);
-            vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
-            vtkSmartPointer<vtkPolyData> cutline = vtkSmartPointer<vtkPolyData>::New();
-
-            vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
-            connectivityFilter->SetInputConnection(cutter->GetOutputPort());
-            connectivityFilter->SetExtractionModeToClosestPointRegion();
-
-            double centerPoint[3];
-            model->GetPoint(i, centerPoint);
-            connectivityFilter->SetClosestPoint(centerPoint);
-            plane->SetOrigin(model->GetPoint(i));
-            plane->SetNormal(Tangents->GetTuple(i));
-
-            cutter->SetCutFunction(plane);
-            cutter->Update();
-            connectivityFilter->Update();
-
-            cutline = connectivityFilter->GetOutput();
-            //std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
-
-            double curvaturePoint[3], p[3], v[3], normal[3], angleCos, maxScore = -INFINITY;
-            int violationNum = 0, innerNum = 0;
-            double direction[3] = {0,0,0};
-            double averageCircleR = 0;
-            for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
-            {
-                cutline->GetPoint(j, p);
-                vtkMath::Subtract(p, centerPoint, v);
-                averageCircleR += vtkMath::Norm(v);
-            }
-            averageCircleR /= cutline->GetNumberOfPoints();
-
-            Normals->GetTuple(i, normal);
-            for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
-            {
-                cutline->GetPoint(j, p);
-                vtkMath::Subtract(p, centerPoint, v);
-                double r = vtkMath::Normalize(v);
-                angleCos = vtkMath::Dot(v, normal);
-                double sign = 0;
-                if(angleCos > 0)
-                {
-                    innerNum++;
-                    double Krel = angleCos * Curvatures->GetValue(j);
-                    if(r*Krel > 1)
-                    {
-                        violationNum++;
-                        sign = 1;
-                    }
-                    double rr = (r < averageCircleR)? r : averageCircleR;
-                    double step = 0.05 * pow(rr , 3) * (sign * pow((Krel - 1/r),2) + 0.2 * Krel * Krel);
-                    vtkMath::MultiplyScalar(v, step);
-                    vtkMath::Add(direction, v, direction);
-                }
-                if(angleCos > maxScore)
-                {
-                    maxScore = angleCos;
-                    curvaturePoint[0] = p[0];
-                    curvaturePoint[1] = p[1];
-                    curvaturePoint[2] = p[2];
-                }
-            }
-
-            if(innerNum > 0)
-                vtkMath::MultiplyScalar(direction, 1/innerNum);
-            Directions->InsertTuple(i, direction);
-            ViolationNums->InsertValue(i, violationNum);
-
-            CurvaturePoints->InsertPoint(i, curvaturePoint);
-
-            double r = (sqrt(vtkMath::Distance2BetweenPoints(curvaturePoint, centerPoint)));
-            Radius->InsertValue(i, r);
-            double k = Curvatures->GetValue(i);
-            if(violationNum == 0)
-            {
-                std::cout<<i<<" r ="<<r<<"\t 1/k = "<< 1/k << std::endl;
-            }
-            else
-            {
-
-                std::cout<<i<<" r = "<<r<<"\t 1/k = "<< 1/k <<"\tviolation = "<<violationNum;
-                if(r*k < 1) std::cout<<" "<<r*k;
-                std::cout<<endl;
-            }
-        }
-    }
-};
-
 Centerline::Centerline()
 {
     actor->GetProperty()->SetColor(1,1,0);
@@ -773,7 +664,6 @@ void Centerline::VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkS
 vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon)
 {
     bool use_spline = true;  // whether use spline
-    bool parallel = false;
     double stepSize = 0.0005;
     vtkSmartPointer<vtkParametricSpline> spline = vtkSmartPointer<vtkParametricSpline>::New();
 
@@ -793,27 +683,27 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
     vtkSmartPointer<vtkPolyData> IllCutCircles = vtkSmartPointer<vtkPolyData>::New();
 
-    int MaxIter = 10; int modify = 1;
+    int MaxIter = 1; int modify = 0;
     for(int iter = 0; iter < MaxIter; iter++)
     {
-        int N = model->GetNumberOfPoints();
         std::cout<<"Iteration: "<<iter<<endl;
-        Tangents->Reset();Tangents->SetNumberOfComponents(3);Tangents->SetNumberOfTuples(N);
-        Normals->Reset();Normals->SetNumberOfComponents(3);Normals->SetNumberOfTuples(N);
-        Binormals->Reset();Binormals->SetNumberOfComponents(3);Binormals->SetNumberOfTuples(N);
-        Curvatures->Reset();Curvatures->SetNumberOfValues(N);
-        Torsions->Reset();Torsions->SetNumberOfValues(N);
-        S->Reset();S->SetNumberOfValues(N);
-        U->Reset();U->SetNumberOfValues(N);
-        CurvaturePoints->Reset();CurvaturePoints->SetNumberOfPoints(N);
-        Directions->Reset();Directions->SetNumberOfTuples(N);
-        ViolationNums->Reset();ViolationNums->SetNumberOfValues(N);
+        Tangents->Reset();Tangents->SetNumberOfComponents(3);
+        Normals->Reset();Normals->SetNumberOfComponents(3);
+        Binormals->Reset();Binormals->SetNumberOfComponents(3);
+        Curvatures->Reset();
+        Torsions->Reset();
+        S->Reset();
+        U->Reset();
+        CurvaturePoints->Reset();
+        ViolationPoints->Reset();
+        Directions->Reset();
+        ViolationNums->Reset();
         spline->RemoveAllObservers();
         spline->SetPoints(model->GetPoints());
 
         // Get the length as parameter on each point
         double cumS = 0;
-        S->InsertValue(0, cumS);
+        S->InsertNextValue(cumS);
         for(vtkIdType i = 1; i< model->GetNumberOfPoints(); i++)
         {
             double p[3], lastp[3], distance;
@@ -821,7 +711,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             model->GetPoint(i, p);
             distance = sqrt(vtkMath::Distance2BetweenPoints(p, lastp));
             cumS += distance;
-            S->InsertValue(i, cumS);
+            S->InsertNextValue(cumS);
             //std::cout<<i<<" distance "<<distance<<endl;
         }
         std::cout<<"S max:"<<S->GetValue(model->GetNumberOfPoints()-1)<<endl;
@@ -830,7 +720,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         {
             double u;
             u = S->GetValue(i) / cumS;
-            U->InsertValue(i, u);
+            U->InsertNextValue(u);
         }
         std::cout<<"U max:"<<U->GetValue(model->GetNumberOfPoints()-1)<<endl;
         // Get the tangent vector on each point
@@ -845,7 +735,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             {
                 GetVerticalPlane(i, tangent);
             }
-            Tangents->InsertTuple(i, tangent);
+            Tangents->InsertNextTuple(tangent);
         }
         // Get the normal vector and curvature on each point
         for(vtkIdType i = 0; i< model->GetNumberOfPoints(); i++)
@@ -903,8 +793,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 }
                 vtkMath::Normalize(normal);
             }
-            Normals->InsertTuple(i, normal);
-            Curvatures->InsertValue(i, curvature);
+            Normals->InsertNextTuple(normal);
+            Curvatures->InsertNextValue(curvature);
         }
 
         //PutNormalsOnSameSide(Normals, Curvatures);
@@ -917,7 +807,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             Normals->GetTuple(i, normal);
             vtkMath::Cross(tangent, normal, binormal);
             vtkMath::Normalize(binormal);
-            Binormals->InsertTuple(i, binormal);
+            Binormals->InsertNextTuple(binormal);
         }
         // Get the torsion on each point
         for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
@@ -962,7 +852,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     torsion = -1/(snext - slast) * vtkMath::Dot(dbinormal, normal);
                 }
             }
-            Torsions->InsertValue(i, torsion);
+            Torsions->InsertNextValue(torsion);
             //std::cout<<"torsion: "<<i<<" "<<torsion<<endl;
         }
 
@@ -980,113 +870,89 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkSmartPointer<vtkDoubleArray> Radius = vtkSmartPointer<vtkDoubleArray>::New();
 
         // calculate the cut circles and curvature points
+        double sumr = 0;
+        for(vtkIdType i=0; i<model->GetNumberOfPoints(); i += 1)
+        {
+            double centerPoint[3];
+            model->GetPoint(i, centerPoint);
+            connectivityFilter->SetClosestPoint(centerPoint);
+            plane->SetOrigin(model->GetPoint(i));
+            plane->SetNormal(Tangents->GetTuple(i));
 
-        if(parallel)
-        {
-            CutCircleOp func;
-            vtkSMPTools::Initialize(4);
-            std::cout<<vtkSMPTools::GetEstimatedNumberOfThreads()<<endl;
-            //inputs
-            func.model=model;
-            func.t_colon=t_colon;
-            func.Tangents=Tangents;
-            func.Normals=Normals;
-            func.Curvatures=Curvatures;
-            func.Radius=Radius;
-            //outputs
-            func.CurvaturePoints = CurvaturePoints;
-            func.ViolationNums = ViolationNums;
-            func.Directions = Directions;
-            vtkSMPTools::For(0, model->GetNumberOfPoints(), func);
-        }
-        else
-        {
-            double sumr = 0;
-            for(vtkIdType i=0; i<model->GetNumberOfPoints(); i += 1)
+            cutter->SetCutFunction(plane);
+            cutter->Update();
+            connectivityFilter->Update();
+
+            cutline = connectivityFilter->GetOutput();
+            //std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
+
+            double curvaturePoint[3], p[3], v[3], normal[3], angleCos, maxScore = -INFINITY;
+            int violationNum = 0, innerNum = 0;
+            double direction[3] = {0,0,0};
+            double averageCircleR = 0;
+            for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
             {
-                double centerPoint[3];
-                model->GetPoint(i, centerPoint);
-                connectivityFilter->SetClosestPoint(centerPoint);
-                plane->SetOrigin(model->GetPoint(i));
-                plane->SetNormal(Tangents->GetTuple(i));
-
-                cutter->SetCutFunction(plane);
-                cutter->Update();
-                connectivityFilter->Update();
-
-                cutline = connectivityFilter->GetOutput();
-                //std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
-
-                double curvaturePoint[3], p[3], v[3], normal[3], angleCos, maxScore = -INFINITY;
-                int violationNum = 0, innerNum = 0;
-                double direction[3] = {0,0,0};
-                double averageCircleR = 0;
-                for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
-                {
-                    cutline->GetPoint(j, p);
-                    vtkMath::Subtract(p, centerPoint, v);
-                    averageCircleR += vtkMath::Norm(v);
-                }
-                averageCircleR /= cutline->GetNumberOfPoints();
-
-                Normals->GetTuple(i, normal);
-                for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
-                {
-                    cutline->GetPoint(j, p);
-                    vtkMath::Subtract(p, centerPoint, v);
-                    double r = vtkMath::Normalize(v);
-                    angleCos = vtkMath::Dot(v, normal);
-                    double sign = 0;
-                    if(angleCos > 0)
-                    {
-                        innerNum++;
-                        double Krel = angleCos * Curvatures->GetValue(j);
-                        if(r*Krel > 1)
-                        {
-                            violationNum++;
-                            sign = 1;
-                            if(iter == MaxIter - 1)
-                                ViolationPoints->InsertNextPoint(p);
-                        }
-                        double rr = (r < averageCircleR)? r : averageCircleR;
-                        double step = 0.05 * pow(rr , 3) * (sign * pow((Krel - 1/r),2) + 0.2 * Krel * Krel);
-                        vtkMath::MultiplyScalar(v, step);
-                        vtkMath::Add(direction, v, direction);
-                    }
-                    if(angleCos > maxScore)
-                    {
-                        maxScore = angleCos;
-                        curvaturePoint[0] = p[0];
-                        curvaturePoint[1] = p[1];
-                        curvaturePoint[2] = p[2];
-                    }
-                }
-                if(innerNum > 0)
-                    vtkMath::MultiplyScalar(direction, 1/innerNum);
-                Directions->InsertTuple(i, direction);
-                ViolationNums->InsertValue(i, violationNum);
-
-                CurvaturePoints->InsertPoint(i, curvaturePoint);
-
-                double r = (sqrt(vtkMath::Distance2BetweenPoints(curvaturePoint, centerPoint)));
-                Radius->InsertValue(i, r);
-                if(violationNum > 0 && iter == MaxIter - 1)
-                {
-                    appendFilter->RemoveAllInputs();
-                    appendFilter->AddInputData(cutline);
-                    appendFilter->AddInputData(IllCutCircles);
-                    appendFilter->Update();
-                    cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
-                    cleanFilter->Update();
-                    IllCutCircles->DeepCopy(cleanFilter->GetOutput());
-                    //std::cout<<i<<" "<<IllCutCircles->GetNumberOfPoints()<<"("<<cutline->GetNumberOfPoints()<<")"<<endl;
-                }
-                sumr+=r;
+                cutline->GetPoint(j, p);
+                vtkMath::Subtract(p, centerPoint, v);
+                averageCircleR += vtkMath::Norm(v);
             }
+            averageCircleR /= cutline->GetNumberOfPoints();
+
+            Normals->GetTuple(i, normal);
+            for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
+            {
+                cutline->GetPoint(j, p);
+                vtkMath::Subtract(p, centerPoint, v);
+                double r = vtkMath::Normalize(v);
+                angleCos = vtkMath::Dot(v, normal);
+                double sign = 0;
+                if(angleCos > 0)
+                {
+                    innerNum++;
+                    double Krel = angleCos * Curvatures->GetValue(j);
+                    if(r*Krel > 1)
+                    {
+                        violationNum++;
+                        sign = 1;
+                        ViolationPoints->InsertNextPoint(p);
+                    }
+                    double rr = (r < averageCircleR)? r : averageCircleR;
+                    double step = 0.05 * pow(rr , 3) * (sign * pow((Krel - 1/r),2) + 0.2 * Krel * Krel);
+                    vtkMath::MultiplyScalar(v, step);
+                    vtkMath::Add(direction, v, direction);
+                }
+                if(angleCos > maxScore)
+                {
+                    maxScore = angleCos;
+                    curvaturePoint[0] = p[0];
+                    curvaturePoint[1] = p[1];
+                    curvaturePoint[2] = p[2];
+                }
+            }
+            if(innerNum > 0)
+                vtkMath::MultiplyScalar(direction, 1/innerNum);
+            Directions->InsertNextTuple(direction);
+            ViolationNums->InsertNextValue(violationNum);
+
+            CurvaturePoints->InsertNextPoint(curvaturePoint);
+
+            double r = (sqrt(vtkMath::Distance2BetweenPoints(curvaturePoint, centerPoint)));
+            Radius->InsertNextValue(r);
+            if(violationNum > 0)
+            {
+                appendFilter->RemoveAllInputs();
+                appendFilter->AddInputData(cutline);
+                appendFilter->AddInputData(IllCutCircles);
+                appendFilter->Update();
+                cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+                cleanFilter->Update();
+                IllCutCircles->DeepCopy(cleanFilter->GetOutput());
+                //std::cout<<i<<" "<<IllCutCircles->GetNumberOfPoints()<<"("<<cutline->GetNumberOfPoints()<<")"<<endl;
+            }
+            sumr+=r;
         }
         if(iter == MaxIter - 1)
         {
-            std::cout<<Tangents->GetNumberOfTuples()<<endl;
             VisualizeTNB(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager);
             VisualizeSpoke(CurvaturePoints, ViolationNums, t_rendermanager);
         }
@@ -1111,7 +977,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             Normals->GetTuple(i, n);
             vtkMath::MultiplyScalar(n, step);
             vtkMath::Add(p, n, np);
-            NewPoints->InsertPoint(i, np);
+            NewPoints->InsertNextPoint(np);
         }
         model->SetPoints(NewPoints);
         SmoothCenterline(3);
@@ -1128,7 +994,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 double p[3], newp[3];
                 model->GetPoint(i, p);
                 vtkMath::Add(p, direction, newp);
-                NewPoints->InsertPoint(i, newp);
+                NewPoints->InsertNextPoint(newp);
             }
             model->SetPoints(NewPoints);
             SmoothCenterline(3);

@@ -53,10 +53,11 @@ public:
     vtkSmartPointer<vtkPolyData> EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon);
     vtkSmartPointer<vtkPolyData> Deformation(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
-                                             RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon);
+                                             vtkSmartPointer<vtkPolyData> t_colon);
     void VisualizeTNB(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                       vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
                       RenderManager* t_rendermanager);
+    void VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkSmartPointer<vtkIntArray> ViolationNums, RenderManager *t_rendermanager);
 };
 
 #endif // CENTERLINE_H
