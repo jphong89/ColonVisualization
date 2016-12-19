@@ -42,6 +42,7 @@ public:
     int GetNumberOfPoints();
     vtkSmartPointer<vtkPlane> GetVerticalPlane(vtkIdType i, double* normalDirection);
     void SmoothCenterline(double std);
+    void Smooth(vtkSmartPointer<vtkDoubleArray> Candidate, double std);
     void GaussianTangents(vtkSmartPointer<vtkDoubleArray> Tangents, double std);
     void GaussianNormals(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkDoubleArray> Tangents, double std);
     void UniformSample(int resolution);
@@ -58,6 +59,7 @@ public:
                       vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
                       RenderManager* t_rendermanager);
     void VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkSmartPointer<vtkIntArray> ViolationNums, RenderManager *t_rendermanager);
+    void VisualizeOriginalCurve(RenderManager* t_rendermanager);
 };
 
 #endif // CENTERLINE_H
