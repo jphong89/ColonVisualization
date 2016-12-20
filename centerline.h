@@ -41,7 +41,7 @@ public:
     ~Centerline(){}
     int GetNumberOfPoints();
     vtkSmartPointer<vtkPlane> GetVerticalPlane(vtkIdType i, double* normalDirection);
-    void SmoothCenterline(double std);
+    void SmoothCenterline(double std, vtkSmartPointer<vtkIntArray> ViolationNums = NULL);
     void Smooth(vtkSmartPointer<vtkDoubleArray> Candidate, double std);
     void GaussianTangents(vtkSmartPointer<vtkDoubleArray> Tangents, double std);
     void GaussianNormals(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkDoubleArray> Tangents, double std);

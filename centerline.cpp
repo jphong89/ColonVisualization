@@ -234,7 +234,7 @@ double* Centerline::conv(double *A, double *B, int lenA, int lenB, int *lenC)
     //return convolution array
     return(C);
 }
-void Centerline::SmoothCenterline(double std)
+void Centerline::SmoothCenterline(double std, vtkSmartPointer<vtkIntArray> ViolationNums)
 {
     int halfLength = (int)round(std*4.5);
     int GaussianKernelLen = 2*halfLength + 1;
@@ -278,20 +278,24 @@ void Centerline::SmoothCenterline(double std)
     gx = conv(x, G, NumPoints + GaussianKernelLen -1, GaussianKernelLen, &NumSmoothedPoints);
     gy = conv(y, G, NumPoints + GaussianKernelLen -1, GaussianKernelLen, &NumSmoothedPoints);
     gz = conv(z, G, NumPoints + GaussianKernelLen -1, GaussianKernelLen, &NumSmoothedPoints);
-    std::cout<<NumSmoothedPoints<<endl;
     double gp[3];
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
     vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
     for(vtkIdType i = 0; i <NumPoints; i++)
     {
-        gp[0] = gx[i + GaussianKernelLen -1];
-        gp[1] = gy[i + GaussianKernelLen -1];
-        gp[2] = gz[i + GaussianKernelLen -1];
-        //std::cout<<i<<" "<<gp[0]<<" "<<gp[1]<<" "<<gp[2]<<" "<<std::endl;
-        //std::cout<<i<<" "<<x[i + (GaussianKernelLen-1)/2]<<" "<<y[i + (GaussianKernelLen-1)/2]<<" "<<z[i + (GaussianKernelLen-1)/2]<<" "<<std::endl;
-        //std::cout<<i<<" "<<model->GetPoint(i)[0]<<" "<<model->GetPoint(i)[1]<<" "<<model->GetPoint(i)[2]<<" "<<std::endl;
-        points->InsertNextPoint(gp);
-
+        if(ViolationNums == NULL || ViolationNums->GetValue(i) > 0) // selective smoothing
+        {
+            gp[0] = gx[i + GaussianKernelLen -1];
+            gp[1] = gy[i + GaussianKernelLen -1];
+            gp[2] = gz[i + GaussianKernelLen -1];
+            points->InsertNextPoint(gp);
+        }
+        else
+        {
+            double p[3];
+            model->GetPoint(i, p);
+            points->InsertNextPoint(p);
+        }
     }
     for(int i=0; i<NumPoints-1; i++)
     {
@@ -307,8 +311,7 @@ void Centerline::SmoothCenterline(double std)
     model->DeepCopy(polyline);
     mapper->Update();
     actor->GetProperty()->SetPointSize(5);
-    std::cout<<"centerline smoothed:"<<model->GetNumberOfPoints()<<std::endl;
-
+    //std::cout<<"centerline smoothed:"<<model->GetNumberOfPoints()<<std::endl;
     free(x);
     free(y);
     free(z);
@@ -786,7 +789,7 @@ void Centerline::VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkS
     vtkSmartPointer<vtkCellArray> spokeLines = vtkSmartPointer<vtkCellArray>::New();
     vtkSmartPointer<vtkUnsignedCharArray> colors = vtkSmartPointer<vtkUnsignedCharArray>::New();
     colors->SetNumberOfComponents(3);
-    //unsigned char red[3] = {255, 0, 0};
+    unsigned char red[3] = {255, 0, 0};
     unsigned char blue[3] = {0, 0, 255};
     for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
     {
@@ -803,7 +806,7 @@ void Centerline::VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkS
         spokeLines->InsertNextCell(spokeLine);
         if(ViolationNums->GetValue(i) > 0)
         {
-            colors->InsertNextTypedTuple(blue);
+            colors->InsertNextTypedTuple(red);
         }
         else
         {
@@ -856,9 +859,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     // Arrays for tangents, normals, binormals, curvatures, torsions, length parameters, unified parameters
     vtkSmartPointer<vtkDoubleArray> Tangents = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> Normals = vtkSmartPointer<vtkDoubleArray>::New();
-    vtkSmartPointer<vtkDoubleArray> Binormals = vtkSmartPointer<vtkDoubleArray>::New();
+    //vtkSmartPointer<vtkDoubleArray> Binormals = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> Curvatures = vtkSmartPointer<vtkDoubleArray>::New();
-    vtkSmartPointer<vtkDoubleArray> Torsions = vtkSmartPointer<vtkDoubleArray>::New();
+    //vtkSmartPointer<vtkDoubleArray> Torsions = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> S = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> U = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkPoints> CurvaturePoints = vtkSmartPointer<vtkPoints>::New();
@@ -869,20 +872,19 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
     vtkSmartPointer<vtkPolyData> IllCutCircles = vtkSmartPointer<vtkPolyData>::New();
 
-    for(int i = 0; i < 100; i++)
-    {
-    SmoothCenterline(3);
-    }
-    int MaxIter = 1; int modify = 0;
+
+
+
+    int MaxIter = 2; int modify = 1;
     for(int iter = 0; iter < MaxIter; iter++)
     {
         int N = model->GetNumberOfPoints();
         std::cout<<"Iteration: "<<iter<<endl;
         Tangents->Reset();          Tangents->SetNumberOfComponents(3);        Tangents->SetNumberOfTuples(N);
         Normals->Reset();           Normals->SetNumberOfComponents(3);         Normals->SetNumberOfTuples(N);
-        Binormals->Reset();         Binormals->SetNumberOfComponents(3);       Binormals->SetNumberOfTuples(N);
+        //Binormals->Reset();         Binormals->SetNumberOfComponents(3);       Binormals->SetNumberOfTuples(N);
         Curvatures->Reset();                                                   Curvatures->SetNumberOfValues(N);
-        Torsions->Reset();                                                     Torsions->SetNumberOfValues(N);
+        //Torsions->Reset();                                                     Torsions->SetNumberOfValues(N);
         S->Reset();                                                            S->SetNumberOfValues(N);
         U->Reset();                                                            U->SetNumberOfValues(N);
         CurvaturePoints->Reset();                                              CurvaturePoints->SetNumberOfPoints(N);
@@ -990,6 +992,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         //PutNormalsOnSameSide(Normals, Curvatures);
 
         // Get the binormal on each point
+        /*
         for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
         {
             double tangent[3], normal[3], binormal[3];
@@ -1045,6 +1048,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             Torsions->InsertValue(i, torsion);
             //std::cout<<"torsion: "<<i<<" "<<torsion<<endl;
         }
+        */
 
         // cut circle
         vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
@@ -1079,7 +1083,6 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         }
         else
         {
-            double sumr = 0;
             for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
             {
                 double centerPoint[3];
@@ -1098,14 +1101,6 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 double curvaturePoint[3], p[3], v[3], normal[3], angleCos, maxScore = -INFINITY;
                 int violationNum = 0, innerNum = 0;
                 double direction[3] = {0,0,0};
-                double averageCircleR = 0;
-                for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
-                {
-                    cutline->GetPoint(j, p);
-                    vtkMath::Subtract(p, centerPoint, v);
-                    averageCircleR += vtkMath::Norm(v);
-                }
-                averageCircleR /= cutline->GetNumberOfPoints();
 
                 Normals->GetTuple(i, normal);
                 for(vtkIdType j=0; j<cutline->GetNumberOfPoints(); j++)
@@ -1141,10 +1136,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 }
 
                 if(innerNum > 0)
-                {
                     vtkMath::MultiplyScalar(direction, 1/(double)innerNum);
-                }
-                std::cout<<vtkMath::Norm(direction)<<endl;
 
                 //if(violationNum > 0)
                 //{
@@ -1168,48 +1160,17 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
                     cleanFilter->Update();
                     IllCutCircles->DeepCopy(cleanFilter->GetOutput());
-                    //std::cout<<i<<" "<<IllCutCircles->GetNumberOfPoints()<<"("<<cutline->GetNumberOfPoints()<<")"<<endl;
                 }
-                sumr+=r;
             }
         }
         if(iter == MaxIter - 1)
         {
-            //std::cout<<Tangents->GetNumberOfTuples()<<endl;
             //VisualizeTNB(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager);
             VisualizeSpoke(CurvaturePoints, ViolationNums, t_rendermanager);
         }
-
-        // modify the points on curve along the Normal direction
-        /*
         if(modify)
         {
-            double aver = sumr / model->GetNumberOfPoints();
-            vtkSmartPointer<vtkPoints> NewPoints = vtkSmartPointer<vtkPoints>::New();
-            for(vtkIdType i = 0; i < model->GetNumberOfPoints(); i += 1)
-            {
-                double n[3], p[3], np[3], step, k, r, sign = 0, weight = 0.2;
-                model->GetPoint(i, p);
-                k = Curvatures->GetValue(i);
-                r = Radius->GetValue(i);
-                if(k > 1/r) sign = 1;
-                if(r < aver)
-                    step =  0.05 * pow(r, (double)3) * (sign * (k - 1/r)*(k - 1/r) + weight * k * k);
-                else
-                    step =  0.05 * pow(aver, (double)3) * (sign * (k - 1/r)*(k - 1/r) + weight * k * k);
-                Normals->GetTuple(i, n);
-                vtkMath::MultiplyScalar(n, step);
-                vtkMath::Add(p, n, np);
-                NewPoints->InsertPoint(i, np);
-            }
-            model->SetPoints(NewPoints);
-            SmoothCenterline(3);
-        }
-        */
-        // modify the points on curve along the weighted sum direction
-        if(modify)
-        {
-            Smooth(Directions,3);
+            /*
             vtkSmartPointer<vtkPoints> NewPoints = vtkSmartPointer<vtkPoints>::New();
             for(vtkIdType i = 0; i < model->GetNumberOfPoints(); i++)
             {
@@ -1222,12 +1183,15 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 //std::cout<<vtkMath::Norm(direction)<<endl;
             }
             model->SetPoints(NewPoints);
-            SmoothCenterline(3);
+            */
+            SmoothCenterline(3, ViolationNums);
+
         }
-        std::cout<<"Iteration Ends: "<<iter<<" "<<model->GetNumberOfPoints()<<" "<<cumS<<endl;
+        std::cout<<"Iteration Ends: "<<iter<<" "<<S->GetValue(model->GetNumberOfPoints()-1)<<endl;
     }
 
     // visualize the ill cut circles
+
     vtkSmartPointer<vtkPolyDataMapper> IllCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     IllCutCirclesMapper->SetInputData(IllCutCircles);
     IllCutCirclesMapper->Update();
@@ -1237,6 +1201,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     t_rendermanager->renderModel(IllCutCirclesActor);
 
     // visualize the violation points
+    /*
     vtkSmartPointer<vtkPolyData> PolyViolationPoints = vtkSmartPointer<vtkPolyData>::New();
     PolyViolationPoints->SetPoints(ViolationPoints);
     vtkSmartPointer<vtkVertexGlyphFilter> ViolationPointsVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
@@ -1250,6 +1215,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     ViolationPointsActor->GetProperty()->SetPointSize(3);
     ViolationPointsActor->GetProperty()->SetColor(1,0,0);
     t_rendermanager->renderModel(ViolationPointsActor);
+    */
 
 
     //return Deformation(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager, t_colon);
