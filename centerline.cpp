@@ -565,7 +565,6 @@ void Centerline::GaussianTangents(vtkSmartPointer<vtkDoubleArray> Tangents, doub
         //std::cout<<i<<" "<<model->GetPoint(i)[0]<<" "<<model->GetPoint(i)[1]<<" "<<model->GetPoint(i)[2]<<" "<<std::endl;
 
         Tangents->InsertNextTuple(gt);
-
     }
     free(x);
     free(y);
@@ -870,21 +869,25 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
     vtkSmartPointer<vtkPolyData> IllCutCircles = vtkSmartPointer<vtkPolyData>::New();
 
-    int MaxIter = 1; int modify = 1;
+    for(int i = 0; i < 100; i++)
+    {
+    SmoothCenterline(3);
+    }
+    int MaxIter = 1; int modify = 0;
     for(int iter = 0; iter < MaxIter; iter++)
     {
         int N = model->GetNumberOfPoints();
         std::cout<<"Iteration: "<<iter<<endl;
-        Tangents->Reset();Tangents->SetNumberOfComponents(3);Tangents->SetNumberOfTuples(N);
-        Normals->Reset();Normals->SetNumberOfComponents(3);Normals->SetNumberOfTuples(N);
-        Binormals->Reset();Binormals->SetNumberOfComponents(3);Binormals->SetNumberOfTuples(N);
-        Curvatures->Reset();Curvatures->SetNumberOfValues(N);
-        Torsions->Reset();Torsions->SetNumberOfValues(N);
-        S->Reset();S->SetNumberOfValues(N);
-        U->Reset();U->SetNumberOfValues(N);
-        CurvaturePoints->Reset();CurvaturePoints->SetNumberOfPoints(N);
-        Directions->Reset();Directions->SetNumberOfTuples(N);
-        ViolationNums->Reset();ViolationNums->SetNumberOfValues(N);
+        Tangents->Reset();          Tangents->SetNumberOfComponents(3);        Tangents->SetNumberOfTuples(N);
+        Normals->Reset();           Normals->SetNumberOfComponents(3);         Normals->SetNumberOfTuples(N);
+        Binormals->Reset();         Binormals->SetNumberOfComponents(3);       Binormals->SetNumberOfTuples(N);
+        Curvatures->Reset();                                                   Curvatures->SetNumberOfValues(N);
+        Torsions->Reset();                                                     Torsions->SetNumberOfValues(N);
+        S->Reset();                                                            S->SetNumberOfValues(N);
+        U->Reset();                                                            U->SetNumberOfValues(N);
+        CurvaturePoints->Reset();                                              CurvaturePoints->SetNumberOfPoints(N);
+        Directions->Reset();        Directions->SetNumberOfComponents(3);      Directions->SetNumberOfTuples(N);
+        ViolationNums->Reset();                                                ViolationNums->SetNumberOfValues(N);
         spline->RemoveAllObservers();
         spline->SetPoints(model->GetPoints());
 
@@ -1077,7 +1080,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         else
         {
             double sumr = 0;
-            for(vtkIdType i=0; i<model->GetNumberOfPoints(); i += 1)
+            for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
             {
                 double centerPoint[3];
                 model->GetPoint(i, centerPoint);
@@ -1123,8 +1126,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                             if(iter == MaxIter - 1)
                                 ViolationPoints->InsertNextPoint(p);
                         }
-                        double rr = (r < averageCircleR)? r : averageCircleR;
-                        double step = 0.05 * pow(rr , 3) * (sign * pow((Krel - 1/r),2) + 0.2 * Krel * Krel);
+                        double rr = (r < 15)? r : 15;
+                        double step = 0.2 * rr * rr * sqrt((sign * pow((Krel - 1/r),2) + Krel * Krel));
                         vtkMath::MultiplyScalar(v, step);
                         vtkMath::Add(direction, v, direction);
                     }
@@ -1136,16 +1139,19 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                         curvaturePoint[2] = p[2];
                     }
                 }
+
                 if(innerNum > 0)
                 {
                     vtkMath::MultiplyScalar(direction, 1/(double)innerNum);
-                    std::cout<<vtkMath::Norm(direction)<<endl;
                 }
+                std::cout<<vtkMath::Norm(direction)<<endl;
+
                 //if(violationNum > 0)
                 //{
                 //   vtkMath::MultiplyScalar(direction, 1/(double)violationNum);
                 //    std::cout<<vtkMath::Norm(direction);
                 //}
+                //Directions->SetTuple(i, direction);
                 Directions->InsertTuple(i, direction);
                 ViolationNums->InsertValue(i, violationNum);
 
@@ -1205,7 +1211,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         {
             Smooth(Directions,3);
             vtkSmartPointer<vtkPoints> NewPoints = vtkSmartPointer<vtkPoints>::New();
-            for(vtkIdType i = 0; i < model->GetNumberOfPoints(); i += 1)
+            for(vtkIdType i = 0; i < model->GetNumberOfPoints(); i++)
             {
                 double direction[3];
                 Directions->GetTuple(i, direction);
@@ -1213,12 +1219,14 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 model->GetPoint(i, p);
                 vtkMath::Add(p, direction, newp);
                 NewPoints->InsertPoint(i, newp);
+                //std::cout<<vtkMath::Norm(direction)<<endl;
             }
             model->SetPoints(NewPoints);
-            //SmoothCenterline(3);
+            SmoothCenterline(3);
         }
         std::cout<<"Iteration Ends: "<<iter<<" "<<model->GetNumberOfPoints()<<" "<<cumS<<endl;
     }
+
     // visualize the ill cut circles
     vtkSmartPointer<vtkPolyDataMapper> IllCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     IllCutCirclesMapper->SetInputData(IllCutCircles);
@@ -1242,6 +1250,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     ViolationPointsActor->GetProperty()->SetPointSize(3);
     ViolationPointsActor->GetProperty()->SetColor(1,0,0);
     t_rendermanager->renderModel(ViolationPointsActor);
+
 
     //return Deformation(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager, t_colon);
     return NULL;
