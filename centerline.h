@@ -6,6 +6,7 @@
 #include <malloc.h>
 #include <math.h>
 #include <vtkPlane.h>
+#include <vtkPlanes.h>
 #include <vtkPlaneSource.h>
 #include <vtkTransform.h>
 #include <vtkTransformFilter.h>

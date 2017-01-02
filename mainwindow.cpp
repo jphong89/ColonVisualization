@@ -65,7 +65,7 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     m_centerline->UniformSample(1000);
 
     // Gaussian Smoothing
-    m_centerline->SmoothCenterline(3);
+    //m_centerline->SmoothCenterline(3);
     //m_filemanager->SaveFile(m_centerline->GetOutput(), "SmoothedCenterline.vtp");
 
     // Centerline-Driven Colon Deformation

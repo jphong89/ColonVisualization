@@ -871,11 +871,17 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
     vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
     vtkSmartPointer<vtkPolyData> IllCutCircles = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> NormalCutCircles = vtkSmartPointer<vtkPolyData>::New();
 
+    // Smooth Centerline
+    /*
+    for(int i = 0; i < 10; i++)
+    {
+        SmoothCenterline(3, NULL);
+    }
+    */
 
-
-
-    int MaxIter = 2; int modify = 1;
+    int MaxIter = 1; int modify = 0;
     for(int iter = 0; iter < MaxIter; iter++)
     {
         int N = model->GetNumberOfPoints();
@@ -906,7 +912,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             S->InsertValue(i, cumS);
             //std::cout<<i<<" distance "<<distance<<endl;
         }
-        std::cout<<"S max:"<<S->GetValue(model->GetNumberOfPoints()-1)<<endl;
+        std::cout<<"Curve Length:"<<S->GetValue(model->GetNumberOfPoints()-1)<<endl;
         // Get the normalized parameter, used in spline
         for(vtkIdType i = 0; i< model->GetNumberOfPoints(); i++)
         {
@@ -914,7 +920,6 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             u = S->GetValue(i) / cumS;
             U->InsertValue(i, u);
         }
-        std::cout<<"U max:"<<U->GetValue(model->GetNumberOfPoints()-1)<<endl;
         // Get the tangent vector on each point
         for(vtkIdType i = 0; i< model->GetNumberOfPoints(); i++)
         {
@@ -988,8 +993,6 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             Normals->InsertTuple(i, normal);
             Curvatures->InsertValue(i, curvature);
         }
-
-        //PutNormalsOnSameSide(Normals, Curvatures);
 
         // Get the binormal on each point
         /*
@@ -1122,7 +1125,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                                 ViolationPoints->InsertNextPoint(p);
                         }
                         double rr = (r < 15)? r : 15;
-                        double step = 0.2 * rr * rr * sqrt((sign * pow((Krel - 1/r),2) + Krel * Krel));
+                        double step = 0.1 * pow(rr, 3) * (sign * pow((Krel - 1/r),2) + Krel * Krel);
                         vtkMath::MultiplyScalar(v, step);
                         vtkMath::Add(direction, v, direction);
                     }
@@ -1136,7 +1139,10 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 }
 
                 if(innerNum > 0)
+                {
                     vtkMath::MultiplyScalar(direction, 1/(double)innerNum);
+                    //std::cout<<i<<" "<<vtkMath::Norm(direction)<<endl;
+                }
 
                 //if(violationNum > 0)
                 //{
@@ -1161,6 +1167,16 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     cleanFilter->Update();
                     IllCutCircles->DeepCopy(cleanFilter->GetOutput());
                 }
+                else if(iter == MaxIter - 1)
+                {
+                    appendFilter->RemoveAllInputs();
+                    appendFilter->AddInputData(cutline);
+                    appendFilter->AddInputData(NormalCutCircles);
+                    appendFilter->Update();
+                    cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+                    cleanFilter->Update();
+                    NormalCutCircles->DeepCopy(cleanFilter->GetOutput());
+                }
             }
         }
         if(iter == MaxIter - 1)
@@ -1170,7 +1186,10 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         }
         if(modify)
         {
-            /*
+            for(int n = 0; n < 10; n++)
+            {
+                Smooth(Directions, 3);
+            }
             vtkSmartPointer<vtkPoints> NewPoints = vtkSmartPointer<vtkPoints>::New();
             for(vtkIdType i = 0; i < model->GetNumberOfPoints(); i++)
             {
@@ -1183,22 +1202,28 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 //std::cout<<vtkMath::Norm(direction)<<endl;
             }
             model->SetPoints(NewPoints);
-            */
-            SmoothCenterline(3, ViolationNums);
-
+            //SmoothCenterline(3, NULL);
         }
-        std::cout<<"Iteration Ends: "<<iter<<" "<<S->GetValue(model->GetNumberOfPoints()-1)<<endl;
+        std::cout<<"Iteration Ends"<<endl;
     }
 
     // visualize the ill cut circles
-
     vtkSmartPointer<vtkPolyDataMapper> IllCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     IllCutCirclesMapper->SetInputData(IllCutCircles);
     IllCutCirclesMapper->Update();
     vtkSmartPointer<vtkActor> IllCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     IllCutCirclesActor->SetMapper(IllCutCirclesMapper);
-    IllCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
-    t_rendermanager->renderModel(IllCutCirclesActor);
+    IllCutCirclesActor->GetProperty()->SetColor(1, 0, 0);
+    //t_rendermanager->renderModel(IllCutCirclesActor);
+
+    // visualize the normal cut circles
+    vtkSmartPointer<vtkPolyDataMapper> NormalCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    NormalCutCirclesMapper->SetInputData(NormalCutCircles);
+    NormalCutCirclesMapper->Update();
+    vtkSmartPointer<vtkActor> NormalCutCirclesActor = vtkSmartPointer<vtkActor>::New();
+    NormalCutCirclesActor->SetMapper(NormalCutCirclesMapper);
+    NormalCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
+    t_rendermanager->renderModel(NormalCutCirclesActor);
 
     // visualize the violation points
     /*
@@ -1217,6 +1242,107 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     t_rendermanager->renderModel(ViolationPointsActor);
     */
 
+    // relax the Orthogonality
+    vtkSmartPointer<vtkIdList> tempViolationTail = vtkSmartPointer<vtkIdList>::New();
+    vtkSmartPointer<vtkIdList> tempViolationHead = vtkSmartPointer<vtkIdList>::New();
+    for(vtkIdType i = 0; i < model->GetNumberOfPoints()-1; i++)
+    {
+        if(ViolationNums->GetValue(i)==0 && ViolationNums->GetValue(i+1)!=0)
+            tempViolationHead->InsertNextId(i+1);
+        else if(ViolationNums->GetValue(i)!=0 && ViolationNums->GetValue(i+1)==0)
+            tempViolationTail->InsertNextId(i);
+    }
+    //std::cout<<tempViolationTail->GetNumberOfIds()<<endl;
+    if(tempViolationHead->GetId(0) > tempViolationTail->GetId(0))
+    {
+        tempViolationTail->DeleteId(tempViolationTail->GetId(0));
+    }
+    //std::cout<<tempViolationTail->GetNumberOfIds()<<endl;
+
+    //std::cout<<tempViolationHead->GetNumberOfIds()<<endl;
+    if(tempViolationHead->GetId(tempViolationHead->GetNumberOfIds()-1) > tempViolationTail->GetId(tempViolationTail->GetNumberOfIds()-1))
+    {
+        tempViolationHead->DeleteId(tempViolationHead->GetId(tempViolationHead->GetNumberOfIds()-1));
+    }
+    //std::cout<<tempViolationHead->GetNumberOfIds()<<endl;
+
+    assert(tempViolationHead->GetNumberOfIds() == tempViolationTail->GetNumberOfIds());
+
+    vtkSmartPointer<vtkCutter> newcutter = vtkSmartPointer<vtkCutter>::New();
+    newcutter->SetInputData(t_colon);
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> newconnectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    newconnectivityFilter->SetInputConnection(newcutter->GetOutputPort());
+    newconnectivityFilter->SetExtractionModeToClosestPointRegion();
+
+    vtkSmartPointer<vtkPolyData> NewCutlines = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkAppendPolyData> newappendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    vtkSmartPointer<vtkCleanPolyData> newcleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+
+    for(vtkIdType i = 0; i < tempViolationHead->GetNumberOfIds(); i++)
+    {
+        std::cout<<tempViolationHead->GetId(i)<<"->"<<tempViolationTail->GetId(i)<<endl;
+        double t1[3], t2[3], p1[3], p2[3];
+        Tangents->GetTuple(tempViolationHead->GetId(i)-1, t1);
+        Tangents->GetTuple(tempViolationTail->GetId(i)+1, t2);
+        model->GetPoint(tempViolationHead->GetId(i)-1, p1);
+        model->GetPoint(tempViolationTail->GetId(i)+1, p2);
+        double **A;
+        A = (double **)malloc(2*sizeof(double *));
+        A[0] = (double *)malloc(2*sizeof(double));
+        A[1] = (double *)malloc(2*sizeof(double));
+        A[0][0] = t1[0]; A[0][1] = t1[1];
+        A[1][0] = t2[0]; A[1][1] = t2[1];
+        double *x;
+        x = (double *)malloc(2*sizeof(double));
+        x[0] = vtkMath::Dot(t1, p1);
+        x[1] = vtkMath::Dot(t2, p2);
+
+        vtkMath::SolveLinearSystem(A, x, 2);
+
+        double P[3];
+        P[0] = x[0]; P[1] = x[1]; P[2] = 0;
+        free(A[0]);
+        free(A[1]);
+        free(A);
+        free(x);
+
+        double sections = tempViolationTail->GetId(i) - tempViolationHead->GetId(i) + 2;
+        for(vtkIdType j = 1; j < sections; j++)
+        {
+            double t[3];
+            t[0] = j/sections * t1[0] + (sections - j)/sections * t2[0];
+            t[1] = j/sections * t1[1] + (sections - j)/sections * t2[1];
+            t[2] = j/sections * t1[2] + (sections - j)/sections * t2[2];
+            vtkMath::Normalize(t);
+            vtkSmartPointer<vtkPlane> newplane = vtkSmartPointer<vtkPlane>::New();
+            newplane->SetNormal(t);
+            newplane->SetOrigin(P);
+            newcutter->SetCutFunction(newplane);
+            newcutter->Update();
+            double centerPoint[3];
+            model->GetPoint(tempViolationHead->GetId(i) + j - 1, centerPoint);
+            newconnectivityFilter->SetClosestPoint(centerPoint);
+            newconnectivityFilter->Update();
+            vtkSmartPointer<vtkPolyData> newcutline = vtkSmartPointer<vtkPolyData>::New();
+            newcutline = newconnectivityFilter->GetOutput();
+
+            newappendFilter->RemoveAllInputs();
+            newappendFilter->AddInputData(newcutline);
+            newappendFilter->AddInputData(NewCutlines);
+            newappendFilter->Update();
+            newcleanFilter->SetInputConnection(newappendFilter->GetOutputPort());
+            newcleanFilter->Update();
+            NewCutlines->DeepCopy(newcleanFilter->GetOutput());
+        }
+    }
+
+    vtkSmartPointer<vtkPolyDataMapper> NewCutlinesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    NewCutlinesMapper->SetInputData(NewCutlines);
+    NewCutlinesMapper->Update();
+    vtkSmartPointer<vtkActor> NewCutlinesActor = vtkSmartPointer<vtkActor>::New();
+    NewCutlinesActor->SetMapper(NewCutlinesMapper);
+    NewCutlinesActor->GetProperty()->SetColor(2, 1, 0);
+    t_rendermanager->renderModel(NewCutlinesActor);
 
     //return Deformation(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager, t_colon);
     return NULL;
