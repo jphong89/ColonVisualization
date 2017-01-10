@@ -881,11 +881,14 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     }
     */
 
-    int MaxIter = 1; int modify = 0;
-    for(int iter = 0; iter < MaxIter; iter++)
+    int MaxIter = 1; int modify = 0; // if modify==1 do one more loop to visualize the effect of the very last modification
+    for(int iter = 0; iter < MaxIter + modify; iter++)
     {
         int N = model->GetNumberOfPoints();
-        std::cout<<"Iteration: "<<iter<<endl;
+        if(iter < MaxIter)
+            std::cout<<"Iteration: "<<iter<<endl;
+        else
+            std::cout<<"Iteration: Visualize the effect of the last modification"<<endl;
         Tangents->Reset();          Tangents->SetNumberOfComponents(3);        Tangents->SetNumberOfTuples(N);
         Normals->Reset();           Normals->SetNumberOfComponents(3);         Normals->SetNumberOfTuples(N);
         //Binormals->Reset();         Binormals->SetNumberOfComponents(3);       Binormals->SetNumberOfTuples(N);
@@ -1124,10 +1127,10 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                             if(iter == MaxIter - 1)
                                 ViolationPoints->InsertNextPoint(p);
                         }
-                        double rr = (r < 15)? r : 15;
-                        double step = 0.1 * pow(rr, 3) * (sign * pow((Krel - 1/r),2) + Krel * Krel);
-                        vtkMath::MultiplyScalar(v, step);
-                        vtkMath::Add(direction, v, direction);
+                        //double rr = (r < 15)? r : 15;
+                        //double step = 0.1 * pow(rr, 3) * (sign * pow((Krel - 1/r),2) + Krel * Krel);
+                        //vtkMath::MultiplyScalar(v, step);
+                        //vtkMath::Add(direction, v, direction);
                     }
                     if(angleCos > maxScore)
                     {
@@ -1138,21 +1141,22 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     }
                 }
 
+                Normals->GetTuple(i, direction);
+                double step = 0;
+                if(violationNum!=0)
+                    step = 0.5 * pow(15, 3) * pow(Curvatures->GetValue(i), 2);
+                vtkMath::MultiplyScalar(direction, step);
+
+                /*
                 if(innerNum > 0)
                 {
                     vtkMath::MultiplyScalar(direction, 1/(double)innerNum);
                     //std::cout<<i<<" "<<vtkMath::Norm(direction)<<endl;
                 }
+                */
 
-                //if(violationNum > 0)
-                //{
-                //   vtkMath::MultiplyScalar(direction, 1/(double)violationNum);
-                //    std::cout<<vtkMath::Norm(direction);
-                //}
-                //Directions->SetTuple(i, direction);
                 Directions->InsertTuple(i, direction);
                 ViolationNums->InsertValue(i, violationNum);
-
                 CurvaturePoints->InsertPoint(i, curvaturePoint);
 
                 double r = (sqrt(vtkMath::Distance2BetweenPoints(curvaturePoint, centerPoint)));
@@ -1184,9 +1188,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             //VisualizeTNB(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager);
             VisualizeSpoke(CurvaturePoints, ViolationNums, t_rendermanager);
         }
-        if(modify)
+        if(modify && iter < MaxIter)
         {
-            for(int n = 0; n < 10; n++)
+            for(int n = 0; n < 20; n++)
             {
                 Smooth(Directions, 3);
             }
@@ -1243,6 +1247,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     */
 
     // relax the Orthogonality
+
     vtkSmartPointer<vtkIdList> tempViolationTail = vtkSmartPointer<vtkIdList>::New();
     vtkSmartPointer<vtkIdList> tempViolationHead = vtkSmartPointer<vtkIdList>::New();
     for(vtkIdType i = 0; i < model->GetNumberOfPoints()-1; i++)
@@ -1252,21 +1257,34 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         else if(ViolationNums->GetValue(i)!=0 && ViolationNums->GetValue(i+1)==0)
             tempViolationTail->InsertNextId(i);
     }
-    //std::cout<<tempViolationTail->GetNumberOfIds()<<endl;
+
+    vtkSmartPointer<vtkIdList> ViolationTail = vtkSmartPointer<vtkIdList>::New();
+    std::cout<<tempViolationTail->GetNumberOfIds()<<endl;
     if(tempViolationHead->GetId(0) > tempViolationTail->GetId(0))
     {
-        tempViolationTail->DeleteId(tempViolationTail->GetId(0));
+        for(vtkIdType i = 1; i<tempViolationTail->GetNumberOfIds(); i++)
+        {
+            ViolationTail->InsertNextId(tempViolationTail->GetId(i));
+        }
     }
-    //std::cout<<tempViolationTail->GetNumberOfIds()<<endl;
+    else
+        ViolationTail->DeepCopy(tempViolationTail);
+    std::cout<<ViolationTail->GetNumberOfIds()<<endl;
 
-    //std::cout<<tempViolationHead->GetNumberOfIds()<<endl;
-    if(tempViolationHead->GetId(tempViolationHead->GetNumberOfIds()-1) > tempViolationTail->GetId(tempViolationTail->GetNumberOfIds()-1))
+    vtkSmartPointer<vtkIdList> ViolationHead = vtkSmartPointer<vtkIdList>::New();
+    std::cout<<tempViolationHead->GetNumberOfIds()<<endl;
+    if(tempViolationHead->GetId(tempViolationHead->GetNumberOfIds()-1) > ViolationTail->GetId(ViolationTail->GetNumberOfIds()-1))
     {
-        tempViolationHead->DeleteId(tempViolationHead->GetId(tempViolationHead->GetNumberOfIds()-1));
+        for(vtkIdType i = 0; i<tempViolationHead->GetNumberOfIds()-1; i++)
+        {
+            ViolationHead->InsertNextId(tempViolationHead->GetId(i));
+        }
     }
-    //std::cout<<tempViolationHead->GetNumberOfIds()<<endl;
+    else
+        ViolationHead->DeepCopy(tempViolationHead);
+    std::cout<<ViolationHead->GetNumberOfIds()<<endl;
 
-    assert(tempViolationHead->GetNumberOfIds() == tempViolationTail->GetNumberOfIds());
+    assert(ViolationHead->GetNumberOfIds() == ViolationTail->GetNumberOfIds());
 
     vtkSmartPointer<vtkCutter> newcutter = vtkSmartPointer<vtkCutter>::New();
     newcutter->SetInputData(t_colon);
@@ -1278,14 +1296,14 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkAppendPolyData> newappendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
     vtkSmartPointer<vtkCleanPolyData> newcleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
 
-    for(vtkIdType i = 0; i < tempViolationHead->GetNumberOfIds(); i++)
+    for(vtkIdType i = 0; i < ViolationHead->GetNumberOfIds(); i++)
     {
-        std::cout<<tempViolationHead->GetId(i)<<"->"<<tempViolationTail->GetId(i)<<endl;
+        std::cout<<ViolationHead->GetId(i)<<"->"<<ViolationTail->GetId(i)<<endl;
         double t1[3], t2[3], p1[3], p2[3];
-        Tangents->GetTuple(tempViolationHead->GetId(i)-1, t1);
-        Tangents->GetTuple(tempViolationTail->GetId(i)+1, t2);
-        model->GetPoint(tempViolationHead->GetId(i)-1, p1);
-        model->GetPoint(tempViolationTail->GetId(i)+1, p2);
+        Tangents->GetTuple(ViolationHead->GetId(i)-1, t1);
+        Tangents->GetTuple(ViolationTail->GetId(i)+1, t2);
+        model->GetPoint(ViolationHead->GetId(i)-1, p1);
+        model->GetPoint(ViolationTail->GetId(i)+1, p2);
         double **A;
         A = (double **)malloc(2*sizeof(double *));
         A[0] = (double *)malloc(2*sizeof(double));
@@ -1306,7 +1324,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         free(A);
         free(x);
 
-        double sections = tempViolationTail->GetId(i) - tempViolationHead->GetId(i) + 2;
+        double sections = ViolationTail->GetId(i) - ViolationHead->GetId(i) + 2;
         for(vtkIdType j = 1; j < sections; j++)
         {
             double t[3];
@@ -1320,7 +1338,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             newcutter->SetCutFunction(newplane);
             newcutter->Update();
             double centerPoint[3];
-            model->GetPoint(tempViolationHead->GetId(i) + j - 1, centerPoint);
+            model->GetPoint(ViolationHead->GetId(i) + j - 1, centerPoint);
             newconnectivityFilter->SetClosestPoint(centerPoint);
             newconnectivityFilter->Update();
             vtkSmartPointer<vtkPolyData> newcutline = vtkSmartPointer<vtkPolyData>::New();
