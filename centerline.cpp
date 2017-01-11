@@ -579,8 +579,9 @@ void Centerline::GaussianTangents(vtkSmartPointer<vtkDoubleArray> Tangents, doub
 }
 
 vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
-                                                     vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
-                                                     vtkSmartPointer<vtkPolyData> t_colon)
+                                                     vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                                     vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                                     vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals)
 {
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -645,10 +646,11 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
     newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
     vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
     newActor->SetMapper(newMapper);
-    //t_rendermanager->renderModel(newActor);
+    t_rendermanager->renderModel(newActor);
 
     // Simple Deformation
     // Get the old coordinates
+    /*
     vtkSmartPointer<vtkPoints> newColonPoints = vtkSmartPointer<vtkPoints>::New();
     vtkSmartPointer<vtkDoubleArray> Coordinates = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkPointLocator> pointLocator = vtkSmartPointer<vtkPointLocator>::New();
@@ -697,6 +699,48 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
     newColonActor->SetMapper(newColonMapper);
     //t_rendermanager->renderModel(newColonActor);
     return newColonPoly;
+    */
+    // Line Up the Cross Sections
+    for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
+    {
+        vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+        double newp[3], oldp[3], translation[3];
+        newcenterline->GetPoint(i, newp);
+        model->GetPoint(i, oldp);
+        vtkMath::Subtract(newp, oldp, translation);
+        transform->Translate(translation);
+
+        double tnew[3], nnew[3], bnew[3], told[3], nold[3], bold[3];
+        Tangents->GetTuple(i, told);
+        Normals->GetTuple(i, nold);
+        vtkMath::Cross(told, nold, bold);
+        NewTangents->GetTuple(i, tnew);
+        NewNormals->GetTuple(i, nnew);
+        NewBinormals->GetTuple(i, bnew);
+        vtkSmartPointer<vtkMatrix3x3> TNBold = vtkSmartPointer<vtkMatrix3x3>::New();
+        vtkSmartPointer<vtkMatrix3x3> TNBoldInv = vtkSmartPointer<vtkMatrix3x3>::New();
+        vtkSmartPointer<vtkMatrix3x3> TNBnew = vtkSmartPointer<vtkMatrix3x3>::New();
+        vtkSmartPointer<vtkMatrix3x3> R = vtkSmartPointer<vtkMatrix3x3>::New();
+
+        TNBold->SetElement(0,0,told[0]);TNBold->SetElement(1,0,told[1]);TNBold->SetElement(2,0,told[2]);
+        TNBold->SetElement(0,1,nold[0]);TNBold->SetElement(1,1,nold[1]);TNBold->SetElement(2,1,nold[2]);
+        TNBold->SetElement(0,2,bold[0]);TNBold->SetElement(1,2,bold[1]);TNBold->SetElement(2,2,bold[2]);
+        TNBnew->SetElement(0,0,tnew[0]);TNBnew->SetElement(1,0,tnew[1]);TNBnew->SetElement(2,0,tnew[2]);
+        TNBnew->SetElement(0,1,nnew[0]);TNBnew->SetElement(1,1,nnew[1]);TNBnew->SetElement(2,1,nnew[2]);
+        TNBnew->SetElement(0,2,bnew[0]);TNBnew->SetElement(1,2,bnew[1]);TNBnew->SetElement(2,2,bnew[2]);
+
+        vtkMatrix3x3::Invert(TNBold, TNBoldInv);
+        vtkMatrix3x3::Multiply3x3(TNBnew, TNBoldInv, R);
+
+        double angle = acos((R->GetElement(0,0)+R->GetElement(1,1)+R->GetElement(2,2)-1)/2);
+        double temp = sqrt(pow((R->GetElement(2,1)-R->GetElement(1,2)),2)+pow((R->GetElement(0,2)-R->GetElement(2,0)),2)+pow((R->GetElement(1,0)-R->GetElement(0,1)),2));
+        double x = (R->GetElement(2,1)-R->GetElement(1,2))/temp;
+        double y = (R->GetElement(0,2)-R->GetElement(2,0))/temp;
+        double z = (R->GetElement(1,0)-R->GetElement(0,1))/temp;
+        transform->RotateWXYZ(angle, x, y, z);
+        std::cout<<angle<<endl;
+    }
+    return NULL;
 }
 void Centerline::VisualizeTNB(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                               vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
@@ -872,6 +916,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
     vtkSmartPointer<vtkPolyData> IllCutCircles = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> NormalCutCircles = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkDoubleArray> PlaneOriginals = vtkSmartPointer<vtkDoubleArray>::New(); PlaneOriginals->SetNumberOfComponents(3); PlaneOriginals->SetNumberOfTuples(model->GetNumberOfPoints());
+    vtkSmartPointer<vtkDoubleArray> PlaneNormals = vtkSmartPointer<vtkDoubleArray>::New(); PlaneNormals->SetNumberOfComponents(3); PlaneNormals->SetNumberOfTuples(model->GetNumberOfPoints());
 
     // Smooth Centerline
     /*
@@ -1096,6 +1143,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 connectivityFilter->SetClosestPoint(centerPoint);
                 plane->SetOrigin(model->GetPoint(i));
                 plane->SetNormal(Tangents->GetTuple(i));
+
+                PlaneOriginals->SetTuple(i, model->GetPoint(i)); // record
+                PlaneNormals->SetTuple(i, Tangents->GetTuple(i));
 
                 cutter->SetCutFunction(plane);
                 cutter->Update();
@@ -1335,6 +1385,10 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             vtkSmartPointer<vtkPlane> newplane = vtkSmartPointer<vtkPlane>::New();
             newplane->SetNormal(t);
             newplane->SetOrigin(P);
+
+            PlaneOriginals->SetTuple(ViolationHead->GetId(i) + j - 1, P); // record
+            PlaneNormals->SetTuple(ViolationHead->GetId(i) + j - 1, t);
+
             newcutter->SetCutFunction(newplane);
             newcutter->Update();
             double centerPoint[3];
@@ -1362,7 +1416,16 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     NewCutlinesActor->GetProperty()->SetColor(2, 1, 0);
     t_rendermanager->renderModel(NewCutlinesActor);
 
-    //return Deformation(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager, t_colon);
-    return NULL;
+
+    for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
+    {
+        double p[3], t[3];
+        PlaneOriginals->GetTuple(i, p);
+        PlaneNormals->GetTuple(i, t);
+        std::cout<<i<<" "<<p[0]<<" "<<p[1]<<" "<<p[2]<<" "<<t[0]<<" "<<t[1]<<" "<<t[2]<<endl;
+    }
+
+    return Deformation(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals);
+    //return NULL;
 }
 
