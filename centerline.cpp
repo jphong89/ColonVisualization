@@ -583,6 +583,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
                                                      vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                                      vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals)
 {
+    //PutNormalsOnSameSide(Normals, Curvatures);
+    std::cout<<"Deformation"<<endl;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
     double tangent[3], nexttangent[3];
@@ -701,12 +703,34 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
     return newColonPoly;
     */
     // Line Up the Cross Sections
+
+
+    vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
+    cutter->SetInputData(t_colon);
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    connectivityFilter->SetInputConnection(cutter->GetOutputPort());
+    connectivityFilter->SetExtractionModeToClosestPointRegion();
+
+    //vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> CutCircleLineUp = vtkSmartPointer<vtkPolyData>::New();
+
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
     {
-        vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+        //vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
         double newp[3], oldp[3], translation[3];
         newcenterline->GetPoint(i, newp);
         model->GetPoint(i, oldp);
+        double told[3], nold[3], bold[3];
+        Tangents->GetTuple(i, told);
+        Normals->GetTuple(i, nold);
+        vtkMath::Cross(told, nold, bold);
+        /*
         vtkMath::Subtract(newp, oldp, translation);
         transform->Translate(translation);
 
@@ -738,9 +762,66 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
         double y = (R->GetElement(0,2)-R->GetElement(2,0))/temp;
         double z = (R->GetElement(1,0)-R->GetElement(0,1))/temp;
         transform->RotateWXYZ(angle, x, y, z);
-        std::cout<<angle<<endl;
+        std::cout<<i<<" "<<angle<<endl;
+        */
+
+        plane->SetOrigin(PlaneOriginals->GetTuple(i));
+        plane->SetNormal(PlaneNormals->GetTuple(i));
+        cutter->SetCutFunction(plane);
+        cutter->Update();
+
+        connectivityFilter->SetClosestPoint(oldp);
+        connectivityFilter->SetInputData(cutter->GetOutput());
+        connectivityFilter->Update();
+        vtkSmartPointer<vtkPolyData> cutCircle = vtkSmartPointer<vtkPolyData>::New();
+        cutCircle->DeepCopy(connectivityFilter->GetOutput());
+        vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
+
+        for(vtkIdType j=0; j<cutCircle->GetNumberOfPoints(); j++)
+        {
+            double p[3];
+            cutCircle->GetPoint(j, p);
+            double vector[3];
+            vtkMath::Subtract(p, oldp, vector);
+            double coordinate[3];
+            coordinate[0] = vtkMath::Dot(vector, told);
+            coordinate[1] = vtkMath::Dot(vector, nold);
+            coordinate[2] = vtkMath::Dot(vector, bold);
+            double pp[3];
+            double vx[3], vy[3], vz[3], tmp1[3], tmp2[3];
+            NewTangents->GetTuple(i, vx);
+            NewNormals->GetTuple(i, vy);
+            NewBinormals->GetTuple(i, vz);
+            vtkMath::MultiplyScalar(vx, coordinate[0]);
+            vtkMath::MultiplyScalar(vy, coordinate[1]);
+            vtkMath::MultiplyScalar(vz, coordinate[2]);
+            vtkMath::Add(newp, vx, tmp1);
+            vtkMath::Add(tmp1, vy, tmp2);
+            vtkMath::Add(tmp2, vz, pp);
+            newCutCircle->InsertNextPoint(pp);
+        }
+        cutCircle->SetPoints(newCutCircle);
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(CutCircleLineUp);
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->Update();
+        cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+        cleanFilter->Update();
+        CutCircleLineUp->DeepCopy(cleanFilter->GetOutput());
     }
-    return NULL;
+
+    vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
+    CutCircleLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
+    CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
+    CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
+
+    t_rendermanager->renderModel(CutCircleLineUpActor);
+
+    std::cout<<"Deformation End"<<endl;
+    return CutCircleLineUp;
 }
 void Centerline::VisualizeTNB(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                               vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
@@ -1417,6 +1498,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     t_rendermanager->renderModel(NewCutlinesActor);
 
 
+    /*
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
     {
         double p[3], t[3];
@@ -1424,6 +1506,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         PlaneNormals->GetTuple(i, t);
         std::cout<<i<<" "<<p[0]<<" "<<p[1]<<" "<<p[2]<<" "<<t[0]<<" "<<t[1]<<" "<<t[2]<<endl;
     }
+    */
 
     return Deformation(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals);
     //return NULL;
