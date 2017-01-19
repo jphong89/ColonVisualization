@@ -753,8 +753,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
         connectivityFilter->Update();
 
         vtkSmartPointer<vtkPolyData> cutCircle = vtkSmartPointer<vtkPolyData>::New();
-        cutCircle->DeepCopy(connectivityFilter->GetOutput());
-        std::cout<<cutCircle->GetNumberOfPoints()<<endl;
+        cutCircle = connectivityFilter->GetOutput();
+        std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
 
         if(i == 0)
         {
@@ -762,19 +762,16 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
         }
         else
         {
-            for(vtkIdType j = 0; j<cutCircle->GetNumberOfPoints(); j++)
+            for(vtkIdType j = 0; j<lastCircle->GetNumberOfPoints(); j++)
             {
                 if(cutCircle->GetNumberOfPoints() >= 100)
                     break;
                 connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
                 connectivityFilter->Update();
-                cutCircle->DeepCopy(connectivityFilter->GetOutput());
+                cutCircle = connectivityFilter->GetOutput();
             }
             lastCircle->DeepCopy(cutCircle);
-            std::cout<<lastCircle->GetNumberOfPoints()<<endl;
         }
-
-
 
         vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
 
@@ -1190,6 +1187,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
         cutter->SetInputData(t_colon);
         vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+        vtkSmartPointer<vtkPolyData> lastCircle = vtkSmartPointer<vtkPolyData>::New();
         vtkSmartPointer<vtkPolyData> cutline = vtkSmartPointer<vtkPolyData>::New();
 
         vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
@@ -1236,7 +1234,24 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 connectivityFilter->Update();
 
                 cutline = connectivityFilter->GetOutput();
-                //std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
+                std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
+
+                if(i == 0)
+                {
+                    lastCircle->DeepCopy(cutline);
+                }
+                else
+                {
+                    for(vtkIdType j = 0; j < lastCircle->GetNumberOfPoints(); j++)
+                    {
+                        if(cutline->GetNumberOfPoints() > 100)
+                            break;
+                        connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
+                        connectivityFilter->Update();
+                        cutline = connectivityFilter->GetOutput();
+                    }
+                    lastCircle->DeepCopy(cutline);
+                }
 
                 double curvaturePoint[3], p[3], v[3], normal[3], angleCos, maxScore = -INFINITY;
                 int violationNum = 0, innerNum = 0;
@@ -1352,7 +1367,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> IllCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     IllCutCirclesActor->SetMapper(IllCutCirclesMapper);
     IllCutCirclesActor->GetProperty()->SetColor(1, 0, 0);
-    //t_rendermanager->renderModel(IllCutCirclesActor);
+    t_rendermanager->renderModel(IllCutCirclesActor);
 
     // visualize the normal cut circles
     vtkSmartPointer<vtkPolyDataMapper> NormalCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -1381,6 +1396,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     */
 
     // relax the Orthogonality
+
 
     vtkSmartPointer<vtkIdList> tempViolationTail = vtkSmartPointer<vtkIdList>::New();
     vtkSmartPointer<vtkIdList> tempViolationHead = vtkSmartPointer<vtkIdList>::New();
@@ -1528,7 +1544,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Normalize(projection);
         RefDirections->InsertNextTuple(projection);
     }
-    return Deformation(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections);
-    //return NULL;
+    //return Deformation(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections);
+    return NULL;
 }
 
