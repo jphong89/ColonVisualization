@@ -755,7 +755,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
 
         vtkSmartPointer<vtkPolyData> cutCircle = vtkSmartPointer<vtkPolyData>::New();
         cutCircle = connectivityFilter->GetOutput();
-        std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
+        //std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
 
         if(i != 0)
         {
@@ -1229,8 +1229,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 connectivityFilter->Update();
 
                 cutline = connectivityFilter->GetOutput();
-                std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
-
+                //std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
+                
                 if(i == 0)
                 {
                     lastCircle->DeepCopy(cutline);
