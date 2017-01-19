@@ -755,7 +755,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
 
         vtkSmartPointer<vtkPolyData> cutCircle = vtkSmartPointer<vtkPolyData>::New();
         cutCircle = connectivityFilter->GetOutput();
-        std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
+        //std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
 
         if(i != 0)
         {
@@ -997,11 +997,12 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
     // Smooth Centerline
     /*
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < 2; i++)
     {
         SmoothCenterline(3, NULL);
     }
     */
+
 
     int MaxIter = 1; int modify = 0; // if modify==1 do one more loop to visualize the effect of the very last modification
     for(int iter = 0; iter < MaxIter + modify; iter++)
@@ -1288,7 +1289,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 Normals->GetTuple(i, direction);
                 double step = 0;
                 if(violationNum!=0)
-                    step = 0.5 * pow(15, 3) * pow(Curvatures->GetValue(i), 2);
+                    step = 0.5 * 15 * 15 * Curvatures->GetValue(i);
+                    //step = 0.5 * pow(15, 3) * pow(Curvatures->GetValue(i), 2);
                 vtkMath::MultiplyScalar(direction, step);
 
                 /*
@@ -1305,7 +1307,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
                 double r = (sqrt(vtkMath::Distance2BetweenPoints(curvaturePoint, centerPoint)));
                 Radius->InsertValue(i, r);
-                if(violationNum > 0 && iter == MaxIter - 1)
+                if(violationNum > 0 && iter == MaxIter + modify - 1)
                 {
                     appendFilter->RemoveAllInputs();
                     appendFilter->AddInputData(cutline);
@@ -1315,7 +1317,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     cleanFilter->Update();
                     IllCutCircles->DeepCopy(cleanFilter->GetOutput());
                 }
-                else if(iter == MaxIter - 1)
+                else if(iter == MaxIter + modify - 1)
                 {
                     appendFilter->RemoveAllInputs();
                     appendFilter->AddInputData(cutline);
