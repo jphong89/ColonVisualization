@@ -1230,7 +1230,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 connectivityFilter->Update();
 
                 cutline = connectivityFilter->GetOutput();
-                std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
+                //std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
 
                 if(i == 0)
                 {
