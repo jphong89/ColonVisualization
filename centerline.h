@@ -31,6 +31,7 @@
 #include <vtkAppendPolyData.h>
 #include <vtkCleanPolyData.h>
 #include <vtkMatrix3x3.h>
+#include <vtkTriangleFilter.h>
 
 class Centerline : public Object
 {
@@ -64,6 +65,8 @@ public:
                       RenderManager* t_rendermanager);
     void VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkSmartPointer<vtkIntArray> ViolationNums, RenderManager *t_rendermanager);
     void VisualizeOriginalCurve(RenderManager* t_rendermanager);
+
+    void ContoursToSurface(RenderManager* t_rendermanager);
 };
 
 #endif // CENTERLINE_H

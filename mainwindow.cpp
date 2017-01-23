@@ -54,6 +54,8 @@ void MainWindow::on_actionNew_file_triggered()
 // centerline and colon deformation are done in this function
 void MainWindow::on_actionLoad_Centerline_triggered()
 {
+    //m_centerline->ContoursToSurface(m_rendermanager);
+
     QString filePath = QFileDialog::getOpenFileName(
                 this, tr("Open File"),"",
                 tr("Centerline File (*.vtp)"));
@@ -80,6 +82,8 @@ void MainWindow::on_actionLoad_Centerline_triggered()
 
     QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
     widget->GetRenderWindow()->Render();
+
+
 }
 
 // Give two points on colon surface, find the geodesic path between them.

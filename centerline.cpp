@@ -795,6 +795,28 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
             vtkMath::Add(tmp2, vz, pp);
             newCutCircle->InsertNextPoint(pp);
         }
+
+        // check the new CutCircle's order
+        /*
+        vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
+        vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+        for(vtkIdType y = 0; y < newCutCircle->GetNumberOfPoints()-1; y++)
+        {
+            vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+            line->GetPointIds()->SetId(0, y);
+            line->GetPointIds()->SetId(1, y+1);
+            lines->InsertNextCell(line);
+            points->InsertNextPoint(newCutCircle->GetPoint(y));
+        }
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        line->GetPointIds()->SetId(0, newCutCircle->GetNumberOfPoints()-1);
+        line->GetPointIds()->SetId(1, 0);
+        lines->InsertNextCell(line);
+        points->InsertNextPoint(newCutCircle->GetPoint(newCutCircle->GetNumberOfPoints()-1));
+        vtkSmartPointer<vtkPolyData> poly = vtkSmartPointer<vtkPolyData>::New();
+        poly->SetPoints(points);
+        poly->SetLines(lines);
+        */
         cutCircle->SetPoints(newCutCircle);
 
         appendFilter->RemoveAllInputs();
@@ -1230,6 +1252,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 connectivityFilter->Update();
 
                 cutline = connectivityFilter->GetOutput();
+
                 //std::cout<<i<<" "<<"cutline points:"<<cutline->GetNumberOfPoints()<<endl;
 
                 if(i == 0)
@@ -1248,6 +1271,21 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     }
                     lastCircle->DeepCopy(cutline);
                 }
+
+                vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
+                lines = cutline->GetLines();
+                std::cout<<"numberofpoints: "<<cutline->GetNumberOfPoints()<<endl;
+                std::cout<<"numberofcells: "<<lines->GetNumberOfCells()<<endl;
+                std::cout<<"numberofpolys: "<<cutline->GetNumberOfPolys()<<endl;
+                for(vtkIdType y = 0; y < lines->GetNumberOfCells(); y++)
+                {
+                    vtkSmartPointer<vtkIdList> pts = vtkSmartPointer<vtkIdList>::New();
+                    lines->GetCell(y, pts);
+                    std::cout<<"numberofpointsinthiscell: "<<pts->GetNumberOfIds()<<endl;
+                }
+                exit(0);
+
+
 
                 double curvaturePoint[3], p[3], v[3], normal[3], angleCos, maxScore = -INFINITY;
                 int violationNum = 0, innerNum = 0;
@@ -1512,7 +1550,6 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     NewCutlinesActor->GetProperty()->SetColor(2, 1, 0);
     t_rendermanager->renderModel(NewCutlinesActor);
 
-
     /*
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
     {
@@ -1544,3 +1581,47 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     //return NULL;
 }
 
+void CreateCircle( const double& z, const double& radius, const int& resolution, vtkPolyData* polyData )
+{
+  vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+
+  points->SetNumberOfPoints( resolution );
+
+  for( int i = 0 ; i < resolution; ++i )
+    {
+    double theta = vtkMath::RadiansFromDegrees(360.*i/double(resolution));
+    double x = radius*cos(theta);
+    double y = radius*sin(theta);
+    points->SetPoint( i, x, y, z );
+    }
+
+  polyData->Initialize();
+  polyData->SetPoints( points );
+
+  vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+  vertexFilter->SetInputData(polyData);
+  vertexFilter->Update();
+  polyData->DeepCopy(vertexFilter->GetOutput());
+}
+
+void Centerline::ContoursToSurface(RenderManager* t_rendermanager)
+{
+    std::cout<<"Contours To Surface"<<endl;
+    vtkSmartPointer<vtkPolyData> circle1 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> circle2 = vtkSmartPointer<vtkPolyData>::New();
+    CreateCircle(0, 1.0, 100, circle1);
+    CreateCircle(0.5, 2.0, 200, circle2);
+
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    appendFilter->AddInputData(circle1);
+    appendFilter->AddInputData(circle2);
+    appendFilter->Update();
+
+    vtkSmartPointer<vtkPolyData> surface = vtkSmartPointer<vtkPolyData>::New();
+    surface = appendFilter->GetOutput();
+    vtkSmartPointer<vtkPolyDataMapper> surfaceMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    surfaceMapper->SetInputData(surface);
+    vtkSmartPointer<vtkActor> surfaceActor = vtkSmartPointer<vtkActor>::New();
+    surfaceActor->SetMapper(surfaceMapper);
+    t_rendermanager->renderModel(surfaceActor);
+}
