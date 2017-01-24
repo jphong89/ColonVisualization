@@ -987,6 +987,7 @@ void Centerline::VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkS
 
     t_rendermanager->renderModel(spokeActor);
 }
+
 vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon)
 {
     bool use_spline = true;  // whether use spline
@@ -1272,18 +1273,25 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     lastCircle->DeepCopy(cutline);
                 }
 
-                vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
-                lines = cutline->GetLines();
-                std::cout<<"numberofpoints: "<<cutline->GetNumberOfPoints()<<endl;
-                std::cout<<"numberofcells: "<<lines->GetNumberOfCells()<<endl;
-                std::cout<<"numberofpolys: "<<cutline->GetNumberOfPolys()<<endl;
-                for(vtkIdType y = 0; y < lines->GetNumberOfCells(); y++)
+                if(i == 1)
                 {
-                    vtkSmartPointer<vtkIdList> pts = vtkSmartPointer<vtkIdList>::New();
-                    lines->GetCell(y, pts);
-                    std::cout<<"numberofpointsinthiscell: "<<pts->GetNumberOfIds()<<endl;
+                vtkSmartPointer<vtkXMLPolyDataWriter> writer =
+                  vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+                writer->SetFileName("cutcircle1.vtp");
+                writer->SetInputData(cutline);
+                writer->Write();
+                for(vtkIdType y = 0; y < cutline->GetNumberOfPoints()-1; y++)
+                {
+                    double pt[3], npt[3], v[3];
+                    cutline->GetPoint(y, pt);
+                    cutline->GetPoint(y+1, npt);
+                    //std::cout<<pt[0]<<" "<<pt[1]<<" "<<pt[2]<<endl;
+                    vtkMath::Subtract(npt, pt, v);
+                    std::cout<<vtkMath::Norm(v)<<endl;
                 }
                 exit(0);
+                }
+
 
 
 
@@ -1604,24 +1612,84 @@ void CreateCircle( const double& z, const double& radius, const int& resolution,
   polyData->DeepCopy(vertexFilter->GetOutput());
 }
 
-void Centerline::ContoursToSurface(RenderManager* t_rendermanager)
+void Centerline::ContoursToSurface(RenderManager* t_rendermanager, FileManager *t_filemanager)
 {
     std::cout<<"Contours To Surface"<<endl;
     vtkSmartPointer<vtkPolyData> circle1 = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> circle2 = vtkSmartPointer<vtkPolyData>::New();
-    CreateCircle(0, 1.0, 100, circle1);
-    CreateCircle(0.5, 2.0, 200, circle2);
 
-    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
-    appendFilter->AddInputData(circle1);
-    appendFilter->AddInputData(circle2);
-    appendFilter->Update();
+    t_filemanager->LoadNewFile("cutcircle0.vtp");
+    circle1->DeepCopy( t_filemanager->getfile());
+    t_filemanager->LoadNewFile("cutcircle1.vtp");
+    circle2->DeepCopy( t_filemanager->getfile());
+    vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+    transform->Translate(0, 0, 3);
+    transform->Update();
+    vtkSmartPointer<vtkTransformFilter> transformFilter = vtkSmartPointer<vtkTransformFilter>::New();
+    transformFilter->SetInputData(circle2);
+    transformFilter->SetTransform(transform);
+    transformFilter->Update();
+    circle2->DeepCopy(transformFilter->GetOutput());
 
-    vtkSmartPointer<vtkPolyData> surface = vtkSmartPointer<vtkPolyData>::New();
-    surface = appendFilter->GetOutput();
-    vtkSmartPointer<vtkPolyDataMapper> surfaceMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    surfaceMapper->SetInputData(surface);
-    vtkSmartPointer<vtkActor> surfaceActor = vtkSmartPointer<vtkActor>::New();
-    surfaceActor->SetMapper(surfaceMapper);
-    t_rendermanager->renderModel(surfaceActor);
+    vtkSmartPointer<vtkIdList> Ids = vtkSmartPointer<vtkIdList>::New();
+    Ids->SetNumberOfIds(circle2->GetNumberOfPoints());
+    for(vtkIdType i=0; i<circle2->GetNumberOfCells(); i++)
+    {
+        Ids->SetId(i, -1);
+    }
+
+    for(vtkIdType i=0; i<circle2->GetNumberOfCells(); i++)
+    {
+        vtkSmartPointer<vtkIdList> ids = vtkSmartPointer<vtkIdList>::New();
+        circle2->GetCellPoints(i, ids);
+
+        if(Ids->GetId(ids->GetId(0)) < 0 )
+            Ids->SetId(ids->GetId(0), ids->GetId(1));
+        else
+            Ids->SetId(ids->GetId(1), ids->GetId(0));
+    }
+
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
+    vtkIdType lastId = 0;
+    for(vtkIdType i=0; i<circle2->GetNumberOfPoints()-1; i++)
+    {
+        points->InsertNextPoint(circle2->GetPoint(lastId));
+
+        std::cout<<i<<"   "<<lastId<<"->";
+        lastId = Ids->GetId(lastId);
+        std::cout<<lastId<<endl;
+
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        line->GetPointIds()->SetId(0, i);
+        line->GetPointIds()->SetId(1, i+1);
+        lines->InsertNextCell(line);
+    }
+    points->InsertNextPoint(circle2->GetPoint(lastId));
+    vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+    line->GetPointIds()->SetId(0, circle2->GetNumberOfPoints()-1);
+    line->GetPointIds()->SetId(1, 0);
+    lines->InsertNextCell(line);
+
+    vtkSmartPointer<vtkPolyData> circle3 = vtkSmartPointer<vtkPolyData>::New();
+
+    circle3->SetPoints(points);
+    circle3->SetLines(lines);
+
+    vtkSmartPointer<vtkPolyDataMapper> circleMapper1 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    circleMapper1->SetInputData(circle1);
+    circleMapper1->Update();
+    vtkSmartPointer<vtkActor> circleActor1 = vtkSmartPointer<vtkActor>::New();
+    circleActor1->SetMapper(circleMapper1);
+    circleActor1->GetProperty()->SetColor(0, 1, 0);
+    t_rendermanager->renderModel(circleActor1);
+
+    vtkSmartPointer<vtkPolyDataMapper> circleMapper2 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    circleMapper2->SetInputData(circle3);
+    circleMapper2->Update();
+    vtkSmartPointer<vtkActor> circleActor2 = vtkSmartPointer<vtkActor>::New();
+    circleActor2->SetMapper(circleMapper2);
+    circleActor2->GetProperty()->SetColor(1, 0, 0);
+    //circleActor2->GetProperty()->SetRepresentationToPoints();
+    t_rendermanager->renderModel(circleActor2);
 }

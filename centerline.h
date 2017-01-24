@@ -2,6 +2,7 @@
 #define CENTERLINE_H
 #include "object.h"
 #include "rendermanager.h"
+#include "filemanager.h"
 #include <stdlib.h>
 #include <malloc.h>
 #include <math.h>
@@ -32,6 +33,9 @@
 #include <vtkCleanPolyData.h>
 #include <vtkMatrix3x3.h>
 #include <vtkTriangleFilter.h>
+#include <vtkFeatureEdges.h>
+#include <vtkXMLPolyDataWriter.h>
+
 
 class Centerline : public Object
 {
@@ -66,7 +70,7 @@ public:
     void VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkSmartPointer<vtkIntArray> ViolationNums, RenderManager *t_rendermanager);
     void VisualizeOriginalCurve(RenderManager* t_rendermanager);
 
-    void ContoursToSurface(RenderManager* t_rendermanager);
+    void ContoursToSurface(RenderManager* t_rendermanager, FileManager* t_filemanager);
 };
 
 #endif // CENTERLINE_H
