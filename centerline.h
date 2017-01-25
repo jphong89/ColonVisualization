@@ -35,6 +35,7 @@
 #include <vtkTriangleFilter.h>
 #include <vtkFeatureEdges.h>
 #include <vtkXMLPolyDataWriter.h>
+#include <vtkTriangle.h>
 
 
 class Centerline : public Object
