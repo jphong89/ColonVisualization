@@ -582,7 +582,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
                                                      vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                                      vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                                      vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
-                                                     vtkSmartPointer<vtkDoubleArray> RefDirections)
+                                                     vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager *t_filemanager)
 {
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
@@ -729,6 +729,12 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
 
     vtkSmartPointer<vtkPolyData> CutCircleLineUp = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> lastCircle = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastNewCircle = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkAppendPolyData> appendSurfaceFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    vtkSmartPointer<vtkCleanPolyData> cleanSurfaceFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> SurfaceLineUp = vtkSmartPointer<vtkPolyData>::New();
 
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
     {
@@ -769,7 +775,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
             }
         }
         lastCircle->DeepCopy(cutCircle);
-
         vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
 
         for(vtkIdType j=0; j<cutCircle->GetNumberOfPoints(); j++)
@@ -819,6 +824,22 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
         */
         cutCircle->SetPoints(newCutCircle);
 
+        if(i > 0)
+        {
+            std::cout<<"Connect Contours "<<i-1<<" and "<<i<<" "<<lastNewCircle->GetNumberOfPoints()<<"->"<<cutCircle->GetNumberOfPoints()<<endl;;
+            vtkSmartPointer<vtkPolyData> surface = vtkSmartPointer<vtkPolyData>::New();
+            surface->DeepCopy(ConnectTwoContours(lastNewCircle, cutCircle));
+            appendSurfaceFilter->RemoveAllInputs();
+            appendSurfaceFilter->AddInputData(SurfaceLineUp);
+            appendSurfaceFilter->AddInputData(surface);
+            appendFilter->Update();
+            cleanSurfaceFilter->SetInputConnection(appendSurfaceFilter->GetOutputPort());
+            cleanSurfaceFilter->Update();
+            SurfaceLineUp->DeepCopy(cleanSurfaceFilter->GetOutput());
+        }
+
+        lastNewCircle->DeepCopy(cutCircle);
+
         appendFilter->RemoveAllInputs();
         appendFilter->AddInputData(CutCircleLineUp);
         appendFilter->AddInputData(cutCircle);
@@ -828,18 +849,25 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
         CutCircleLineUp->DeepCopy(cleanFilter->GetOutput());
     }
 
+    t_filemanager->SaveFile(CutCircleLineUp, "CutCircleLineUp.vtp");
+    t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp.vtp");
     vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
     CutCircleLineUpMapper->Update();
     vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
     CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
-
     t_rendermanager->renderModel(CutCircleLineUpActor);
 
+    vtkSmartPointer<vtkPolyDataMapper> SurfaceLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    SurfaceLineUpMapper->SetInputData(SurfaceLineUp);
+    SurfaceLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> SurfaceLineUpActor = vtkSmartPointer<vtkActor>::New();
+    SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
+    t_rendermanager->renderModel(SurfaceLineUpActor);
 
     std::cout<<"Deformation End"<<endl;
-    return CutCircleLineUp;
+    return SurfaceLineUp;
 }
 void Centerline::VisualizeTNB(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                               vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
@@ -988,7 +1016,7 @@ void Centerline::VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkS
     t_rendermanager->renderModel(spokeActor);
 }
 
-vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon)
+vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon, FileManager *t_filemanager)
 {
     bool use_spline = true;  // whether use spline
     bool parallel = false; // if set to true, will use vtmSMPTools to calculate the cutcircles and violation points in parallel
@@ -1273,6 +1301,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     lastCircle->DeepCopy(cutline);
                 }
 
+                /*
                 if(i == 1)
                 {
                 vtkSmartPointer<vtkXMLPolyDataWriter> writer =
@@ -1292,9 +1321,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                 exit(0);
                 }
 
-
-
-
+                */
                 double curvaturePoint[3], p[3], v[3], normal[3], angleCos, maxScore = -INFINITY;
                 int violationNum = 0, innerNum = 0;
                 double direction[3] = {0,0,0};
@@ -1585,7 +1612,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Normalize(projection);
         RefDirections->InsertNextTuple(projection);
     }
-    return Deformation(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections);
+    return Deformation(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return NULL;
 }
 
@@ -1613,11 +1640,12 @@ void CreateCircle( const double& z, const double& radius, const int& resolution,
 }
 vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyData> cutCircle)
 {
-    vtkSmartPointer<vtkIdList> Ids = vtkSmartPointer<vtkIdList>::New();
-    Ids->SetNumberOfIds(cutCircle->GetNumberOfPoints());
-    for(vtkIdType i=0; i<cutCircle->GetNumberOfCells(); i++)
+    int * Ids = (int *)malloc(cutCircle->GetNumberOfPoints()*sizeof(int));
+
+    std::cout<<"c,p: "<<cutCircle->GetNumberOfCells()<<" "<<cutCircle->GetNumberOfPoints()<<endl;
+    for(vtkIdType i=0; i<cutCircle->GetNumberOfPoints(); i++)
     {
-        Ids->SetId(i, -1);
+        Ids[i] = -1;
     }
 
     for(vtkIdType i=0; i<cutCircle->GetNumberOfCells(); i++)
@@ -1625,10 +1653,40 @@ vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyD
         vtkSmartPointer<vtkIdList> ids = vtkSmartPointer<vtkIdList>::New();
         cutCircle->GetCellPoints(i, ids);
 
-        if(Ids->GetId(ids->GetId(0)) < 0 )
-            Ids->SetId(ids->GetId(0), ids->GetId(1));
-        else
-            Ids->SetId(ids->GetId(1), ids->GetId(0));
+        Ids[ids->GetId(0)]= ids->GetId(1); // assume the id pairs are connected head to tail, in order
+
+    }
+
+    if(cutCircle->GetNumberOfCells() < cutCircle->GetNumberOfPoints())
+    {
+        int * connected = (int*)malloc(cutCircle->GetNumberOfPoints() * sizeof(int));
+        vtkIdType head, tail;
+        for(vtkIdType i=0; i < cutCircle->GetNumberOfPoints(); i++)
+        {
+            connected[i] = 0;
+            if(Ids[i] < 0)
+            {
+                head = i;
+            }
+        }
+        for(vtkIdType i=0; i < cutCircle->GetNumberOfPoints(); i++)
+        {
+            if(Ids[i] >= 0)
+            {
+                connected[Ids[i]] = 1;
+            }
+        }
+        for(vtkIdType i=0; i < cutCircle->GetNumberOfPoints(); i++)
+        {
+            if(connected[i] == 0)
+            {
+                tail = i;
+                break;
+            }
+        }
+        Ids[head] = tail;
+        std::cout<<"connected "<<head<<" to "<<tail<<endl;
+        free(connected);
     }
 
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
@@ -1640,7 +1698,7 @@ vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyD
         points->InsertNextPoint(cutCircle->GetPoint(lastId));
 
         //std::cout<<i<<"   "<<lastId<<"->";
-        lastId = Ids->GetId(lastId);
+        lastId = Ids[lastId];
         //std::cout<<lastId<<endl;
 
         vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
@@ -1660,6 +1718,7 @@ vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyD
     ReorderedCircle->SetLines(lines);
 
     std::cout<<cutCircle->GetNumberOfPoints()<<"->"<<ReorderedCircle->GetNumberOfPoints()<<endl;
+    free(Ids);
     return ReorderedCircle;
 }
 double Centerline::SinglePath(double **costVrt, double **costHrz, int sx, int sy, int tx, int ty, int *steps)
@@ -1680,20 +1739,20 @@ double Centerline::SinglePath(double **costVrt, double **costHrz, int sx, int sy
     step[0][0] = -1; // from nowhere
     for(int i=1; i<m+1; i++)
     {
-        cost[i][0] = costVrt[i-1][0] + cost[i-1][0];
+        cost[i][0] = costVrt[sx + i-1][sy] + cost[i-1][0];
         step[i][0] = 0; // from top
     }
     for(int i=1; i<n+1; i++)
     {
-        cost[0][i] = costHrz[0][i-1] + cost[0][i-1];
+        cost[0][i] = costHrz[sx][sy + i-1] + cost[0][i-1];
         step[0][i] = 1; // from left
     }
     for(int i=1; i<m+1; i++)
     {
         for(int j=1; j<n+1; j++)
         {
-            double c1 = costVrt[i-1][j] + cost[i-1][j];
-            double c2 = costHrz[i][j-1] + cost[i][j-1];
+            double c1 = costVrt[sx + i-1][sy + j] + cost[i-1][j];
+            double c2 = costHrz[sx + i][sy + j-1] + cost[i][j-1];
             if(c1<c2)
             {
                 cost[i][j] = c1;
@@ -1717,7 +1776,18 @@ double Centerline::SinglePath(double **costVrt, double **costHrz, int sx, int sy
         else if(step[x][y] == 1)
             y--;
     }
-    return cost[m][n];
+    double result = cost[m][n];
+    for(int i=0; i< m+1; i++)
+    {
+        free(cost[i]);
+    }
+    free(cost);
+    for(int i=0; i<m+1; i++)
+    {
+        free(step[i]);
+    }
+    free(step);
+    return result;
 }
 
 void Centerline::ContoursToSurface(RenderManager* t_rendermanager, FileManager *t_filemanager)
@@ -1813,8 +1883,27 @@ void Centerline::ContoursToSurface(RenderManager* t_rendermanager, FileManager *
         }
     }
     std::cout<<"Cost Array Calculated"<<endl;
-    int* steps = (int *)malloc((m+n)*sizeof(int));
-    std::cout<<SinglePath(costVrt, costHrz, 0, 0, m, n, steps)<<endl;
+
+    int** steps = (int**)malloc(m*sizeof(int*));
+    for(int i = 0; i < m; i++)
+    {
+        steps[i] = (int *)malloc((m+n)*sizeof(int));
+    }
+    double * costs = (double*)malloc(m*sizeof(double));
+
+    double minCost = INFINITY;
+    int minx = 0;
+    for(int x = 0; x < m; x++)
+    {
+        costs[x] = SinglePath(costVrt, costHrz, x, 0, x+m, n, steps[x]);
+        //std::cout<<"x = "<<x<<" cost = "<<costs[x]<<endl;
+        if(costs[x] < minCost)
+        {
+            minCost = costs[x];
+            minx = x;
+        }
+    }
+    std::cout<<"minCost = "<<minCost<<" at x="<<minx<<endl;
 
     vtkSmartPointer<vtkPoints> surfacePoints = vtkSmartPointer<vtkPoints>::New();
     vtkSmartPointer<vtkCellArray> surfaceTriangles = vtkSmartPointer<vtkCellArray>::New();
@@ -1832,9 +1921,10 @@ void Centerline::ContoursToSurface(RenderManager* t_rendermanager, FileManager *
         surfacePoints->InsertNextPoint(p);
     }
 
+
     vtkIdType count = 0;
     vtkIdType x, y;
-    x = 0; y = 0;
+    x = minx; y = 0;
 
     for(int i=0; i < m+n; i++)
     {
@@ -1842,7 +1932,7 @@ void Centerline::ContoursToSurface(RenderManager* t_rendermanager, FileManager *
         vtkIdType id1, id2, id3;
         id1 = x%m + count;
         id2 = y%n + count + m;
-        if(steps[i] == 0)
+        if(steps[minx][i] == 0)
         {
             id3 = (x + 1)%m + count;
             //std::cout<<m<<" "<<n<<" "<<x%m<<" "<<y%n<<" "<<(x+1)%m<<endl;
@@ -1882,4 +1972,241 @@ void Centerline::ContoursToSurface(RenderManager* t_rendermanager, FileManager *
         free(costHrz[i]);
     }
     free(costHrz);
+    for(int i = 0; i < m; i++)
+    {
+        free(steps[i]);
+    }
+    free(steps);
+    free(costs);
+}
+vtkSmartPointer<vtkPolyData> Centerline::ConnectTwoContours(vtkSmartPointer<vtkPolyData> circle1, vtkSmartPointer<vtkPolyData> circle2)
+{
+
+    circle1->DeepCopy(ReorderContour(circle1));
+    circle2->DeepCopy(ReorderContour(circle2));
+
+    // connect two neighboring contours
+    // calculate the cost array
+    int m = circle1->GetNumberOfPoints();
+    int n = circle2->GetNumberOfPoints();
+    double** costVrt = (double**)malloc((2*m)*sizeof(double *));
+    for(int i=0; i<2*m; i++)
+    {
+        costVrt[i] = (double*)malloc((n+1)*sizeof(double));
+    }
+    double** costHrz = (double**)malloc((2*m+1)*sizeof(double *));
+    for(int i=0; i<2*m+1; i++)
+    {
+        costHrz[i] = (double*)malloc(n*sizeof(double));
+    }
+
+    for(int i=0; i<2*m; i++)
+    {
+        for(int j=0; j<=n; j++)
+        {
+            vtkIdType l = i%m, r = (i+1)%m, down = j%n;
+            double a, b, c;
+            double pl[3], pr[3], pdown[3];
+            circle1->GetPoint(l, pl);
+            circle1->GetPoint(r, pr);
+            circle2->GetPoint(down, pdown);
+            a = sqrt(vtkMath::Distance2BetweenPoints(pl, pdown));
+            b = sqrt(vtkMath::Distance2BetweenPoints(pr, pdown));
+            c = sqrt(vtkMath::Distance2BetweenPoints(pl, pr));
+            double s = (a+b+c)/2;
+            costVrt[i][j] = sqrt(s*(s-a)*(s-b)*(s-c));
+            //std::cout<<i<<" "<<j<<" "<<costVrt[i][j]<<endl;
+        }
+    }
+    for(int i=0; i<=2*m; i++)
+    {
+        for(int j=0; j<n; j++)
+        {
+            vtkIdType up = i%m, l = j%n, r = (j+1)%n;
+            double a, b, c;
+            double pup[3], pl[3], pr[3];
+            circle1->GetPoint(up, pup);
+            circle2->GetPoint(l, pl);
+            circle2->GetPoint(r, pr);
+            a = sqrt(vtkMath::Distance2BetweenPoints(pl, pup));
+            b = sqrt(vtkMath::Distance2BetweenPoints(pr, pup));
+            c = sqrt(vtkMath::Distance2BetweenPoints(pl, pr));
+            double s = (a+b+c)/2;
+            costHrz[i][j] = sqrt(s*(s-a)*(s-b)*(s-c));
+            //std::cout<<i<<" "<<j<<" "<<s*(s-a)*(s-b)*(s-c)<<endl;
+        }
+    }
+
+    int** steps = (int**)malloc(m*sizeof(int*));
+    for(int i = 0; i < m; i++)
+    {
+        steps[i] = (int *)malloc((m+n)*sizeof(int));
+    }
+    double * costs = (double*)malloc(m*sizeof(double));
+
+    double minCost = INFINITY;
+    int minx = 0;
+    for(int x = 0; x < m; x++)
+    {
+        costs[x] = SinglePath(costVrt, costHrz, x, 0, x+m, n, steps[x]);
+        //std::cout<<"x = "<<x<<" cost = "<<costs[x]<<endl;
+        if(costs[x] < minCost)
+        {
+            minCost = costs[x];
+            minx = x;
+        }
+    }
+    std::cout<<"minCost = "<<minCost<<" at x="<<minx<<endl;
+
+    vtkSmartPointer<vtkPoints> surfacePoints = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> surfaceTriangles = vtkSmartPointer<vtkCellArray>::New();
+
+    for(vtkIdType i = 0; i < m; i++)
+    {
+        double p[3];
+        circle1->GetPoint(i, p);
+        surfacePoints->InsertNextPoint(p);
+    }
+    for(vtkIdType i = 0; i < n; i++)
+    {
+        double p[3];
+        circle2->GetPoint(i, p);
+        surfacePoints->InsertNextPoint(p);
+    }
+
+    vtkIdType count = 0;
+    vtkIdType x, y;
+    x = minx; y = 0;
+
+    for(int i=0; i < m+n; i++)
+    {
+        //std::cout<<i<<"step  "<<steps[i]<<"    "<<x<<","<<y<<endl;
+        vtkIdType id1, id2, id3;
+        id1 = x%m + count;
+        id2 = y%n + count + m;
+        if(steps[minx][i] == 0)
+        {
+            id3 = (x + 1)%m + count;
+            //std::cout<<m<<" "<<n<<" "<<x%m<<" "<<y%n<<" "<<(x+1)%m<<endl;
+            x++;
+        }
+        else
+        {
+            id3 = (y + 1)%n + count + m;
+            //std::cout<<m<<" "<<n<<" "<<x%m<<" "<<y%n<<" "<<(y+1)%m<<endl;
+            y++;
+        }
+        vtkSmartPointer<vtkTriangle> triangle = vtkSmartPointer<vtkTriangle>::New();
+        triangle->GetPointIds()->SetId(0, id1);
+        triangle->GetPointIds()->SetId(1, id2);
+        triangle->GetPointIds()->SetId(2, id3);
+        surfaceTriangles->InsertNextCell(triangle);
+    }
+    vtkSmartPointer<vtkPolyData> surface = vtkSmartPointer<vtkPolyData>::New();
+    surface->SetPoints(surfacePoints);
+    surface->SetPolys(surfaceTriangles);
+
+    // free the cost array
+    for(int i=0; i<2*m; i++)
+    {
+        free(costVrt[i]);
+    }
+    free(costVrt);
+    for(int i=0; i<2*m+1; i++)
+    {
+        free(costHrz[i]);
+    }
+    free(costHrz);
+    for(int i = 0; i < m; i++)
+    {
+        free(steps[i]);
+    }
+    free(steps);
+    free(costs);
+
+    return surface;
+}
+void Centerline::ConnectTwoContoursTest(RenderManager *t_rendermanager, FileManager *t_filemanager)
+{
+    std::cout<<"Connect Two Contours Test"<<endl;
+    vtkSmartPointer<vtkPolyData> circle1 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> circle2 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> circle3 = vtkSmartPointer<vtkPolyData>::New();
+
+    t_filemanager->LoadNewFile("cutcircle0.vtp");
+    circle1->DeepCopy( t_filemanager->getfile());
+    t_filemanager->LoadNewFile("cutcircle1.vtp");
+    circle2->DeepCopy( t_filemanager->getfile());
+    t_filemanager->LoadNewFile("cutcircle0.vtp");
+    circle3->DeepCopy( t_filemanager->getfile());
+
+    vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+    transform->Translate(0, 0, 3);
+    transform->Update();
+    vtkSmartPointer<vtkTransformFilter> transformFilter = vtkSmartPointer<vtkTransformFilter>::New();
+    transformFilter->SetInputData(circle2);
+    transformFilter->SetTransform(transform);
+    transformFilter->Update();
+    circle2->DeepCopy(transformFilter->GetOutput());
+
+    transform->Translate(0, 0, 6);
+    transform->Update();
+    transformFilter->RemoveAllInputs();
+    transformFilter->SetInputData(circle3);
+    transformFilter->Update();
+    circle3->DeepCopy(transformFilter->GetOutput());
+
+    circle1->DeepCopy(ReorderContour(circle1));
+    circle2->DeepCopy(ReorderContour(circle2));
+    circle3->DeepCopy(ReorderContour(circle3));
+
+    vtkSmartPointer<vtkPolyDataMapper> circleMapper1 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    circleMapper1->SetInputData(circle1);
+    circleMapper1->Update();
+    vtkSmartPointer<vtkActor> circleActor1 = vtkSmartPointer<vtkActor>::New();
+    circleActor1->SetMapper(circleMapper1);
+    circleActor1->GetProperty()->SetColor(0, 1, 0);
+    circleActor1->GetProperty()->SetRepresentationToPoints();
+    //t_rendermanager->renderModel(circleActor1);
+
+    vtkSmartPointer<vtkPolyDataMapper> circleMapper2 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    circleMapper2->SetInputData(circle2);
+    circleMapper2->Update();
+    vtkSmartPointer<vtkActor> circleActor2 = vtkSmartPointer<vtkActor>::New();
+    circleActor2->SetMapper(circleMapper2);
+    circleActor2->GetProperty()->SetColor(1, 0, 0);
+    circleActor2->GetProperty()->SetRepresentationToPoints();
+    //t_rendermanager->renderModel(circleActor2);
+
+    vtkSmartPointer<vtkPolyDataMapper> circleMapper3 = vtkSmartPointer<vtkPolyDataMapper>::New();
+    circleMapper3->SetInputData(circle3);
+    circleMapper3->Update();
+    vtkSmartPointer<vtkActor> circleActor3 = vtkSmartPointer<vtkActor>::New();
+    circleActor3->SetMapper(circleMapper3);
+    circleActor3->GetProperty()->SetColor(0, 0, 1);
+    circleActor3->GetProperty()->SetRepresentationToPoints();
+    //t_rendermanager->renderModel(circleActor3);
+
+    vtkSmartPointer<vtkPolyData> surface1 = vtkSmartPointer<vtkPolyData>::New();
+    surface1->DeepCopy(ConnectTwoContours(circle1, circle2));
+
+    vtkSmartPointer<vtkPolyData> surface2 = vtkSmartPointer<vtkPolyData>::New();
+    surface2->DeepCopy(ConnectTwoContours(circle2, circle3));
+
+    std::cout<<circle1->GetNumberOfPoints()<<" "<<circle2->GetNumberOfPoints()<<" "<<circle3->GetNumberOfPoints()<<endl;
+    std::cout<<surface1->GetNumberOfPoints()<<" "<<surface2->GetNumberOfPoints()<<endl;
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    appendFilter->AddInputData(surface1);
+    appendFilter->AddInputData(surface2);
+    appendFilter->Update();
+    vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+    cleanFilter->Update();
+    std::cout<<cleanFilter->GetOutput()->GetNumberOfPoints()<<endl;
+    vtkSmartPointer<vtkPolyDataMapper> surfaceMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    surfaceMapper->SetInputConnection(cleanFilter->GetOutputPort());
+    surfaceMapper->Update();
+    vtkSmartPointer<vtkActor> surfaceActor = vtkSmartPointer<vtkActor>::New();
+    surfaceActor->SetMapper(surfaceMapper);
+    t_rendermanager->renderModel(surfaceActor);
 }

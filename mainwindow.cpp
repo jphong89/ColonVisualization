@@ -54,8 +54,8 @@ void MainWindow::on_actionNew_file_triggered()
 // centerline and colon deformation are done in this function
 void MainWindow::on_actionLoad_Centerline_triggered()
 {
-    m_centerline->ContoursToSurface(m_rendermanager, m_filemanager);
-/*
+    //m_centerline->ConnectTwoContoursTest(m_rendermanager, m_filemanager);
+
     QString filePath = QFileDialog::getOpenFileName(
                 this, tr("Open File"),"",
                 tr("Centerline File (*.vtp)"));
@@ -73,7 +73,7 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     // Centerline-Driven Colon Deformation
 
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
-    newColonPoly = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput());
+    newColonPoly = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");
     //m_colon->SetPoint(newColonPoly->GetPoints());
 
@@ -83,7 +83,6 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
     widget->GetRenderWindow()->Render();
 
-*/
 }
 
 // Give two points on colon surface, find the geodesic path between them.
@@ -625,7 +624,7 @@ void MainWindow::on_actionLighting_triggered()
 void MainWindow::on_action_Deform_Colon_triggered()
 {
     vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
-    newcenterline = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput());
+    newcenterline = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
 
     vtkSmartPointer<vtkVertexGlyphFilter> newVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
     newVertexFilter->SetInputData(newcenterline);

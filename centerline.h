@@ -59,12 +59,12 @@ public:
     void PutNormalsOnSameSide(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures);
     double splineTorsion(vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize);
 
-    vtkSmartPointer<vtkPolyData> EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon);
+    vtkSmartPointer<vtkPolyData> EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> Deformation(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
-                                             vtkSmartPointer<vtkDoubleArray> RefDirections);
+                                             vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
     void VisualizeTNB(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                       vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
                       RenderManager* t_rendermanager);
@@ -74,6 +74,8 @@ public:
     vtkSmartPointer<vtkPolyData> ReorderContour(vtkSmartPointer<vtkPolyData> cutCircle);
     double SinglePath(double **costVrt, double **costHrz,int sx, int sy, int tx, int ty, int *steps);
     void ContoursToSurface(RenderManager* t_rendermanager, FileManager* t_filemanager);
+    vtkSmartPointer<vtkPolyData> ConnectTwoContours(vtkSmartPointer<vtkPolyData> circle1, vtkSmartPointer<vtkPolyData> circle2);
+    void ConnectTwoContoursTest(RenderManager* t_rendermanager, FileManager* t_filemanager);
 };
 
 #endif // CENTERLINE_H
