@@ -38,6 +38,8 @@
 #include <vtkIntersectionPolyDataFilter.h>
 #include <vtkCardinalSpline.h>
 #include <vtkSplineFilter.h>
+#include <vtkClipPolyData.h>
+#include <vtkFeatureEdges.h>
 
 namespace Ui {
 class MainWindow;

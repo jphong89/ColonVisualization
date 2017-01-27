@@ -623,8 +623,10 @@ void MainWindow::on_actionLighting_triggered()
 
 void MainWindow::on_action_Deform_Colon_triggered()
 {
+    /*
     vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
     newcenterline = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
+
 
     vtkSmartPointer<vtkVertexGlyphFilter> newVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
     newVertexFilter->SetInputData(newcenterline);
@@ -633,7 +635,75 @@ void MainWindow::on_action_Deform_Colon_triggered()
     newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
     vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
     newActor->SetMapper(newMapper);
+    */
+
+    // select the vertexes with z value higher than 0
+    /*
+    vtkSmartPointer<vtkIdTypeArray> ids = vtkSmartPointer<vtkIdTypeArray>::New();
+    ids->SetNumberOfComponents(1);
+
+    for(vtkIdType i = 0; i<m_colon->GetOutput()->GetNumberOfPoints(); i++)
+    {
+        double p[3];
+        m_colon->GetOutput()->GetPoint(i, p);
+        //std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+        if(p[2] >= -213.051)  // the z value of the deformed centerline
+        {
+            ids->InsertNextValue(i);
+        }
+    }
+
+    vtkSmartPointer<vtkSelectionNode> selectionNode = vtkSmartPointer<vtkSelectionNode>::New();
+    selectionNode->SetFieldType(vtkSelectionNode::POINT);
+    selectionNode->SetContentType(vtkSelectionNode::INDICES);
+    selectionNode->SetSelectionList(ids);
+    selectionNode->GetProperties()->Set(vtkSelectionNode::CONTAINING_CELLS(), 1);
+
+    vtkSmartPointer<vtkSelection> selection = vtkSmartPointer<vtkSelection>::New();
+    selection->AddNode(selectionNode);
+
+    vtkSmartPointer<vtkExtractSelection> extractSelection = vtkSmartPointer<vtkExtractSelection>::New();
+    extractSelection->SetInputData(0, m_colon->GetOutput());
+    extractSelection->SetInputData(1, selection);
+    extractSelection->Update();
+
+    vtkSmartPointer<vtkUnstructuredGrid> selected = vtkSmartPointer<vtkUnstructuredGrid>::New();
+    selected->ShallowCopy(extractSelection->GetOutput());
+    vtkSmartPointer<vtkGeometryFilter> geometryFilter = vtkSmartPointer<vtkGeometryFilter>::New();
+    geometryFilter->SetInputData(selected);
+    geometryFilter->Update();
+    */
+    vtkSmartPointer<vtkPlane> clipPlane = vtkSmartPointer<vtkPlane>::New();
+    clipPlane->SetOrigin(0, 0, -213.051);
+    clipPlane->SetNormal(0, 0, 1);
+    vtkSmartPointer<vtkClipPolyData> clipper = vtkSmartPointer<vtkClipPolyData>::New();
+    clipper->SetClipFunction(clipPlane);
+    clipper->SetInputData(m_colon->GetOutput());
+
+    vtkSmartPointer<vtkPolyDataMapper> selectedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    selectedMapper->SetInputConnection(clipper->GetOutputPort());
+    vtkSmartPointer<vtkActor> selectedActor = vtkSmartPointer<vtkActor>::New();
+    selectedActor->SetMapper(selectedMapper);
+
+    vtkSmartPointer<vtkFeatureEdges> featureEdges =
+            vtkSmartPointer<vtkFeatureEdges>::New();
+    featureEdges->SetInputConnection(clipper->GetOutputPort());
+    featureEdges->BoundaryEdgesOn();
+    featureEdges->FeatureEdgesOff();
+    featureEdges->ManifoldEdgesOff();
+    featureEdges->NonManifoldEdgesOff();
+    featureEdges->Update();
+
+    // Visualize
+    vtkSmartPointer<vtkPolyDataMapper> edgeMapper =
+            vtkSmartPointer<vtkPolyDataMapper>::New();
+    edgeMapper->SetInputConnection(featureEdges->GetOutputPort());
+    vtkSmartPointer<vtkActor> edgeActor =
+            vtkSmartPointer<vtkActor>::New();
+    edgeActor->SetMapper(edgeMapper);
+    edgeActor->GetProperty()->SetColor(1,0,0);
 
     m_showselectedwindow.show();
-    m_showselectedwindow.RenderSelected(newActor);
+    m_showselectedwindow.RenderSelected(selectedActor);
+    m_showselectedwindow.RenderSelected(edgeActor);
 }
