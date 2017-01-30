@@ -706,4 +706,24 @@ void MainWindow::on_action_Deform_Colon_triggered()
     m_showselectedwindow.show();
     m_showselectedwindow.RenderSelected(selectedActor);
     m_showselectedwindow.RenderSelected(edgeActor);
+
+
+    /*
+    double position[3] = {0,0, -30};
+    vtkMath::Add(position, edgeActor->GetCenter(), position);
+    m_showselectedwindow.GetRenderManager().GetLight()->SetPosition(position);
+
+    double direction[3] = {0, 0, -1};
+    vtkMath::Add(direction, edgeActor->GetCenter(), direction);
+    m_showselectedwindow.GetRenderManager().GetLight()->SetFocalPoint(direction);
+
+    vtkSmartPointer<vtkLightActor> lightActor = vtkSmartPointer<vtkLightActor>::New();
+    lightActor->SetLight(m_showselectedwindow.GetRenderManager().GetLight());
+    m_showselectedwindow.GetRenderManager().GetRender()->AddViewProp(lightActor);
+    */
+
+
+    //m_showselectedwindow.GetRenderManager().GetRender()->LightFollowCameraOff();
+
+    m_showselectedwindow.GetRenderManager().addlight();
 }

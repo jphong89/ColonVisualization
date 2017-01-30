@@ -6,13 +6,15 @@ RenderManager::RenderManager()
 
     light = vtkSmartPointer<vtkLight>::New();
     light->SetLightTypeToHeadlight();
-    light->SetAttenuationValues(0, 0.01, 0);
+    light->SetIntensity(1);
+    light->SetAttenuationValues(0, 0.5, 0);
     light->SetPositional(true);
     light->SetConeAngle(180);
-    light->SetDiffuseColor(10,10,10);
-    light->SetAmbientColor(10,10,10);
-    light->SetSpecularColor(10,10,10);
-    light->SetLightTypeToHeadlight();
+    light->SetDiffuseColor(30, 0, 0);
+    light->SetAmbientColor(30, 30, 30);
+    light->SetSpecularColor(30, 30, 30);
+    //light->SetColor(0.1,0.1,0.1);
+    //light->SetLightTypeToSceneLight();
 }
 
 void RenderManager::renderModel(vtkSmartPointer<vtkActor> t_actor)

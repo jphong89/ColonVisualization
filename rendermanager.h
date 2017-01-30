@@ -25,6 +25,7 @@ public:
     void setambient(int value);
     void setdiffuse(int value);
     void setspecular(int value);
+    vtkSmartPointer<vtkLight> GetLight(){return light;}
 
     vtkSmartPointer<vtkRenderer> GetRender(){return render;}
 };

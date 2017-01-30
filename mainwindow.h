@@ -40,6 +40,7 @@
 #include <vtkSplineFilter.h>
 #include <vtkClipPolyData.h>
 #include <vtkFeatureEdges.h>
+#include <vtkLightActor.h>
 
 namespace Ui {
 class MainWindow;
