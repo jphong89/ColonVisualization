@@ -9,8 +9,8 @@ RenderManager::RenderManager()
     light->SetIntensity(1);
     light->SetAttenuationValues(0, 0.5, 0);
     light->SetPositional(true);
-    light->SetConeAngle(180);
-    light->SetDiffuseColor(30, 0, 0);
+    light->SetConeAngle(60);
+    light->SetDiffuseColor(50, 50, 50);
     light->SetAmbientColor(30, 30, 30);
     light->SetSpecularColor(30, 30, 30);
     //light->SetColor(0.1,0.1,0.1);

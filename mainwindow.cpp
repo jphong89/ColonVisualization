@@ -40,11 +40,14 @@ void MainWindow::on_actionNew_file_triggered()
     //Open file dialog
     QString filePath = QFileDialog::getOpenFileName(
                 this, tr("Open File"), "",
-                tr("3Dmodels (*.stl *.vtp *.ply *.obj)"));
+                tr("3Dmodels (*.stl *.vtp *.ply *.obj *.off)"));
     if(filePath.isEmpty()) return;
 
     m_filemanager->LoadNewFile(filePath);
     m_colon->Object::SetInput(m_filemanager->getfile());
+    m_rendermanager->GetRender()->SetBackground(0.5,0.5, 1);
+    addlight();
+    m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
     m_rendermanager->renderModel(m_colon->GetActor());
 
     QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
@@ -71,10 +74,11 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     //m_filemanager->SaveFile(m_centerline->GetOutput(), "SmoothedCenterline.vtp");
 
     // Centerline-Driven Colon Deformation
-
+    /*
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
     newColonPoly = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");
+    */
     //m_colon->SetPoint(newColonPoly->GetPoints());
 
 
@@ -721,6 +725,9 @@ void MainWindow::on_action_Deform_Colon_triggered()
     lightActor->SetLight(m_showselectedwindow.GetRenderManager().GetLight());
     m_showselectedwindow.GetRenderManager().GetRender()->AddViewProp(lightActor);
     */
+
+
+
 
 
     //m_showselectedwindow.GetRenderManager().GetRender()->LightFollowCameraOff();

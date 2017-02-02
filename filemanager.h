@@ -9,6 +9,11 @@
 #include <vtkSTLReader.h>
 #include <vtkOBJReader.h>
 #include <vtkPLYReader.h>
+#include <vtkPoints.h>
+#include <vtkCellArray.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkTriangle.h>
+#include <vtkPointData.h>
 
 class FileManager
 {
@@ -17,6 +22,7 @@ public:
     ~FileManager();
     void LoadNewFile(QString fileName);
     void SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename);
+    vtkSmartPointer<vtkPolyData> readFileOFF(const char *filename);
     vtkSmartPointer<vtkPolyData> getfile() {return m_polydata;}
 
 private:
