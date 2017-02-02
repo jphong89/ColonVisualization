@@ -7,6 +7,7 @@
 #include <vtkSmartPointer.h>
 #include <QString>
 #include <vtkSTLReader.h>
+#include <vtkSTLWriter.h>
 #include <vtkOBJReader.h>
 #include <vtkPLYReader.h>
 #include <vtkPoints.h>
@@ -14,6 +15,7 @@
 #include <vtkUnsignedCharArray.h>
 #include <vtkTriangle.h>
 #include <vtkPointData.h>
+#include <cstring>
 
 class FileManager
 {

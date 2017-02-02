@@ -47,7 +47,7 @@ void MainWindow::on_actionNew_file_triggered()
     m_colon->Object::SetInput(m_filemanager->getfile());
     m_rendermanager->GetRender()->SetBackground(0.5,0.5, 1);
     addlight();
-    m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
+    //m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
     m_rendermanager->renderModel(m_colon->GetActor());
 
     QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");

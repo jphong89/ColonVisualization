@@ -88,10 +88,20 @@ vtkSmartPointer<vtkPolyData> FileManager::readFileOFF(const char *filename)
     return output;
 }
 
-void FileManager::SaveFile(vtkSmartPointer<vtkPolyData> polydata, char* filename)
+void FileManager::SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename)
 {
-    vtkSmartPointer<vtkXMLPolyDataWriter> writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
-    writer->SetFileName(filename);
-    writer->SetInputData(polydata);
-    writer->Write();
+    if(strstr(filename, ".vtp")!=NULL)
+    {
+        vtkSmartPointer<vtkXMLPolyDataWriter> writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+        writer->SetFileName(filename);
+        writer->SetInputData(polydata);
+        writer->Write();
+    }
+    else if(strstr(filename, ".stl")!=NULL)
+    {
+        vtkSmartPointer<vtkSTLWriter> writer = vtkSmartPointer<vtkSTLWriter>::New();
+        writer->SetFileName(filename);
+        writer->SetInputData(polydata);
+        writer->Write();
+    }
 }
