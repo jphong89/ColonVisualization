@@ -2210,3 +2210,4 @@ void Centerline::ConnectTwoContoursTest(RenderManager *t_rendermanager, FileMana
     surfaceActor->SetMapper(surfaceMapper);
     t_rendermanager->renderModel(surfaceActor);
 }
+

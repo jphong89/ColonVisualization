@@ -10,6 +10,7 @@ public:
     Colon();
     ~Colon(){}
     void SetPoint(vtkSmartPointer<vtkPoints> points);
+    void AddTexture();
 };
 
 #endif // COLON_H

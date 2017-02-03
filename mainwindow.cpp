@@ -45,8 +45,9 @@ void MainWindow::on_actionNew_file_triggered()
 
     m_filemanager->LoadNewFile(filePath);
     m_colon->Object::SetInput(m_filemanager->getfile());
-    m_rendermanager->GetRender()->SetBackground(0.5,0.5, 1);
-    addlight();
+    m_rendermanager->GetRender()->SetBackground(0.1,0.6, 1);
+    m_colon->AddTexture();
+    //addlight();
     //m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
     m_rendermanager->renderModel(m_colon->GetActor());
 
@@ -705,12 +706,13 @@ void MainWindow::on_action_Deform_Colon_triggered()
     vtkSmartPointer<vtkActor> edgeActor =
             vtkSmartPointer<vtkActor>::New();
     edgeActor->SetMapper(edgeMapper);
-    edgeActor->GetProperty()->SetColor(1,0,0);
+    edgeActor->GetProperty()->SetColor(255,0,0);
 
     m_showselectedwindow.show();
     m_showselectedwindow.RenderSelected(selectedActor);
     m_showselectedwindow.RenderSelected(edgeActor);
 
+    m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
 
     /*
     double position[3] = {0,0, -30};

@@ -10,6 +10,8 @@
 #include <vtkPolyData.h>
 #include <vtkLight.h>
 #include <vtkProperty.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkPointData.h>
 
 class Object
 {
