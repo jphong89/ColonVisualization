@@ -1,8 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <unistd.h>
-
-
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -45,8 +43,8 @@ void MainWindow::on_actionNew_file_triggered()
 
     m_filemanager->LoadNewFile(filePath);
     m_colon->Object::SetInput(m_filemanager->getfile());
-    m_rendermanager->GetRender()->SetBackground(0.1,0.6, 1);
-    m_colon->AddTexture();
+    //m_rendermanager->GetRender()->SetBackground(0.1,0.6, 1);
+    //m_colon->AddTexture();
     //addlight();
     //m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
     m_rendermanager->renderModel(m_colon->GetActor());
@@ -59,35 +57,26 @@ void MainWindow::on_actionNew_file_triggered()
 void MainWindow::on_actionLoad_Centerline_triggered()
 {
     //m_centerline->ConnectTwoContoursTest(m_rendermanager, m_filemanager);
-
     QString filePath = QFileDialog::getOpenFileName(
                 this, tr("Open File"),"",
                 tr("Centerline File (*.vtp)"));
     if(filePath.isEmpty()) return;
     m_filemanager->LoadNewFile(filePath);
     m_centerline->Object::SetInput(m_filemanager->getfile());
-
     // Uniform Sampling
     m_centerline->UniformSample(1000);
-
     // Gaussian Smoothing
     //m_centerline->SmoothCenterline(3);
     //m_filemanager->SaveFile(m_centerline->GetOutput(), "SmoothedCenterline.vtp");
-
     // Centerline-Driven Colon Deformation
-    /*
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
     newColonPoly = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");
-    */
     //m_colon->SetPoint(newColonPoly->GetPoints());
-
-
     m_rendermanager->renderModel(m_centerline->GetActor());
 
     QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
     widget->GetRenderWindow()->Render();
-
 }
 
 // Give two points on colon surface, find the geodesic path between them.
@@ -620,7 +609,6 @@ void MainWindow::on_action_Computing_triggered()
     delete intersectionPoint;
     std::cout<<"computing finished"<<std::endl;
 }
-
 void MainWindow::on_actionLighting_triggered()
 {
     m_lightdialog.exec();
@@ -628,56 +616,6 @@ void MainWindow::on_actionLighting_triggered()
 
 void MainWindow::on_action_Deform_Colon_triggered()
 {
-    /*
-    vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
-    newcenterline = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
-
-
-    vtkSmartPointer<vtkVertexGlyphFilter> newVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
-    newVertexFilter->SetInputData(newcenterline);
-    newVertexFilter->Update();
-    vtkSmartPointer<vtkPolyDataMapper> newMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
-    vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
-    newActor->SetMapper(newMapper);
-    */
-
-    // select the vertexes with z value higher than 0
-    /*
-    vtkSmartPointer<vtkIdTypeArray> ids = vtkSmartPointer<vtkIdTypeArray>::New();
-    ids->SetNumberOfComponents(1);
-
-    for(vtkIdType i = 0; i<m_colon->GetOutput()->GetNumberOfPoints(); i++)
-    {
-        double p[3];
-        m_colon->GetOutput()->GetPoint(i, p);
-        //std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
-        if(p[2] >= -213.051)  // the z value of the deformed centerline
-        {
-            ids->InsertNextValue(i);
-        }
-    }
-
-    vtkSmartPointer<vtkSelectionNode> selectionNode = vtkSmartPointer<vtkSelectionNode>::New();
-    selectionNode->SetFieldType(vtkSelectionNode::POINT);
-    selectionNode->SetContentType(vtkSelectionNode::INDICES);
-    selectionNode->SetSelectionList(ids);
-    selectionNode->GetProperties()->Set(vtkSelectionNode::CONTAINING_CELLS(), 1);
-
-    vtkSmartPointer<vtkSelection> selection = vtkSmartPointer<vtkSelection>::New();
-    selection->AddNode(selectionNode);
-
-    vtkSmartPointer<vtkExtractSelection> extractSelection = vtkSmartPointer<vtkExtractSelection>::New();
-    extractSelection->SetInputData(0, m_colon->GetOutput());
-    extractSelection->SetInputData(1, selection);
-    extractSelection->Update();
-
-    vtkSmartPointer<vtkUnstructuredGrid> selected = vtkSmartPointer<vtkUnstructuredGrid>::New();
-    selected->ShallowCopy(extractSelection->GetOutput());
-    vtkSmartPointer<vtkGeometryFilter> geometryFilter = vtkSmartPointer<vtkGeometryFilter>::New();
-    geometryFilter->SetInputData(selected);
-    geometryFilter->Update();
-    */
     vtkSmartPointer<vtkPlane> clipPlane = vtkSmartPointer<vtkPlane>::New();
     clipPlane->SetOrigin(0, 0, -213.051);
     clipPlane->SetNormal(0, 0, 1);
@@ -711,7 +649,6 @@ void MainWindow::on_action_Deform_Colon_triggered()
     m_showselectedwindow.show();
     m_showselectedwindow.RenderSelected(selectedActor);
     m_showselectedwindow.RenderSelected(edgeActor);
-
     m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
 
     /*
@@ -728,11 +665,6 @@ void MainWindow::on_action_Deform_Colon_triggered()
     m_showselectedwindow.GetRenderManager().GetRender()->AddViewProp(lightActor);
     */
 
-
-
-
-
     //m_showselectedwindow.GetRenderManager().GetRender()->LightFollowCameraOff();
-
     m_showselectedwindow.GetRenderManager().addlight();
 }
