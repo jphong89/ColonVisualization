@@ -104,4 +104,35 @@ void FileManager::SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename
         writer->SetInputData(polydata);
         writer->Write();
     }
+    else if(strstr(filename, ".off")!=NULL)
+    {
+        writeFileOff(polydata, filename);
+    }
+}
+
+void FileManager::writeFileOff(vtkSmartPointer<vtkPolyData> polydata, const char *filename)
+{
+    ofstream file;
+    file.open(filename);
+    file<<"OFF"<<std::endl;
+    file<<polydata->GetNumberOfPoints()<<" "<<polydata->GetNumberOfCells()<<std::endl;
+    double p[3];
+    for(vtkIdType i = 0; i < polydata->GetNumberOfPoints(); i++)
+    {
+        polydata->GetPoint(i, p);
+        file<<p[0]<<" "<<p[1]<<" "<<p[2]<<std::endl;
+    }
+
+    vtkSmartPointer<vtkIdList> cellidlist = vtkSmartPointer<vtkIdList>::New();
+    for (vtkIdType i = 0; i <polydata->GetNumberOfCells();i++)
+    {
+        polydata->GetCellPoints(i, cellidlist);
+        file<<(int)cellidlist->GetNumberOfIds()<<" ";
+        for (vtkIdType j=0; j<cellidlist->GetNumberOfIds();j++)
+        {
+            file<<(int)cellidlist->GetId(j)<<" ";
+        }
+        file<<std::endl;
+    }
+    file.close();
 }

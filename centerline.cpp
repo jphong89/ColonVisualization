@@ -1,5 +1,6 @@
 #include "centerline.h"
 #include <iostream>
+#include <fstream>
 #include <vtkMath.h>
 #include <unistd.h>
 #include <vtkSMPTools.h>
@@ -799,6 +800,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation(vtkSmartPointer<vtkDoubleAr
             vtkMath::Add(tmp1, vy, tmp2);
             vtkMath::Add(tmp2, vz, pp);
             newCutCircle->InsertNextPoint(pp);
+
         }
 
         // check the new CutCircle's order
@@ -2211,3 +2213,261 @@ void Centerline::ConnectTwoContoursTest(RenderManager *t_rendermanager, FileMana
     t_rendermanager->renderModel(surfaceActor);
 }
 
+vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
+                                                     vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                                     vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                                     vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                                     vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager *t_filemanager)
+{
+    //PutNormalsOnSameSide(Normals, Curvatures);
+    std::cout<<"Deformation"<<endl;
+    bool straight = true;
+    // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
+    double point[3], nextpoint[3];
+    double tangent[3], nexttangent[3];
+    double normal[3], nextnormal[3];
+    double binormal[3];
+    double ds, curvature;
+    vtkSmartPointer<vtkDoubleArray> NewTangents = vtkSmartPointer<vtkDoubleArray>::New();
+    NewTangents->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkDoubleArray> NewNormals = vtkSmartPointer<vtkDoubleArray>::New();
+    NewNormals->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkDoubleArray> NewBinormals = vtkSmartPointer<vtkDoubleArray>::New();
+    NewBinormals->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+    for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
+    {
+        if(i == 0)
+        {
+            model->GetPoint(0, point);
+            point[0] = point[0] + 60;
+            binormal[0] = 0;
+            binormal[1] = 0;
+            binormal[2] = 1;
+            tangent[0] = 1;
+            tangent[1] = 0;
+            tangent[2] = 0;
+            normal[0] = 0;
+            normal[1] = 1;
+            normal[2] = 0;
+        }
+        ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+        curvature = Curvatures->GetValue(i);
+
+        // Record the New Axis System
+        NewTangents->InsertNextTuple(tangent);
+        NewNormals->InsertNextTuple(normal);
+        NewBinormals->InsertNextTuple(binormal);
+
+        double dnormal[3];
+        if(straight)
+        {
+            dnormal[0] = 0; dnormal[1] = 0; dnormal[2] = 0;
+        }
+        else
+        {
+            dnormal[0] = tangent[0]; dnormal[1] = tangent[1]; dnormal[2] = tangent[2];
+            double RelaxationFactor = 2;
+            vtkMath::MultiplyScalar(dnormal, -curvature / RelaxationFactor);
+        }
+        vtkMath::Add(normal, dnormal, nextnormal);
+        vtkMath::Normalize(nextnormal);
+        //std::cout<<i<<"\ts="<<S->GetValue(i)<<"("<<ds<<")"<<"\tk="<<curvature<<endl;
+        vtkMath::Cross(nextnormal, binormal, nexttangent);
+        vtkMath::Normalize(nexttangent);
+        vtkMath::MultiplyScalar(tangent, ds);
+        vtkMath::Add(point, tangent, nextpoint);
+        newpoints->InsertNextPoint(point);
+
+        point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        normal[0] = nextnormal[0]; normal[1] = nextnormal[1]; normal[2] = nextnormal[2];
+        tangent[0] = nexttangent[0]; tangent[1] = nexttangent[1]; tangent[2] = nexttangent[2];
+    }
+
+    vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
+    newcenterline->SetPoints(newpoints);
+    vtkSmartPointer<vtkVertexGlyphFilter> newVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    newVertexFilter->SetInputData(newcenterline);
+    newVertexFilter->Update();
+    vtkSmartPointer<vtkPolyDataMapper> newMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
+    vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
+    newActor->SetMapper(newMapper);
+    t_rendermanager->renderModel(newActor);
+
+    // Line Up the Cross Sections
+    vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
+    cutter->SetInputData(t_colon);
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    connectivityFilter->SetInputConnection(cutter->GetOutputPort());
+    connectivityFilter->SetExtractionModeToClosestPointRegion();
+
+    //vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> CutCircleLineUp = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastCircle = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastNewCircle = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> SurfaceLineUp = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPointLocator> pointLocator = vtkSmartPointer<vtkPointLocator>::New();
+    pointLocator->SetDataSet(t_colon);
+    pointLocator->BuildLocator();
+
+    bool* Is_Fixed = (bool*)malloc(sizeof(bool) * t_colon->GetNumberOfPoints());
+    memset(Is_Fixed, 0, sizeof(bool) * t_colon->GetNumberOfPoints());
+    vtkSmartPointer<vtkDoubleArray> DeformationField = vtkSmartPointer<vtkDoubleArray>::New();
+    DeformationField->SetNumberOfComponents(3);
+    DeformationField->SetNumberOfTuples(t_colon->GetNumberOfPoints());
+
+    for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
+    {
+        //vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+        double newp[3], oldp[3];
+        newcenterline->GetPoint(i, newp);
+        model->GetPoint(i, oldp);
+        double told[3], nold[3], bold[3];
+        Tangents->GetTuple(i, told);
+
+        //Normals->GetTuple(i, nold);
+        RefDirections->GetTuple(i, nold);
+
+        vtkMath::Cross(told, nold, bold);
+
+        plane->SetOrigin(PlaneOriginals->GetTuple(i));
+        plane->SetNormal(PlaneNormals->GetTuple(i));
+        cutter->SetCutFunction(plane);
+        cutter->Update();
+
+        connectivityFilter->SetClosestPoint(oldp);
+        connectivityFilter->SetInputData(cutter->GetOutput());
+        connectivityFilter->Update();
+
+        vtkSmartPointer<vtkPolyData> cutCircle = vtkSmartPointer<vtkPolyData>::New();
+        cutCircle = connectivityFilter->GetOutput();
+        //std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
+
+        if(i != 0)
+        {
+            for(vtkIdType j = 0; j<lastCircle->GetNumberOfPoints(); j++)
+            {
+                if(cutCircle->GetNumberOfPoints() >= 100)
+                    break;
+                connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
+                connectivityFilter->Update();
+                cutCircle = connectivityFilter->GetOutput();
+            }
+        }
+        lastCircle->DeepCopy(cutCircle);
+        vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
+
+        for(vtkIdType j=0; j<cutCircle->GetNumberOfPoints(); j++)
+        {
+            double p[3];
+            cutCircle->GetPoint(j, p);
+            double vector[3];
+            vtkMath::Subtract(p, oldp, vector);
+            double coordinate[3];
+            coordinate[0] = vtkMath::Dot(vector, told);
+            coordinate[1] = vtkMath::Dot(vector, nold);
+            coordinate[2] = vtkMath::Dot(vector, bold);
+            double pp[3];
+            double vx[3], vy[3], vz[3], tmp1[3], tmp2[3];
+            NewTangents->GetTuple(i, vx);
+            NewNormals->GetTuple(i, vy);
+            NewBinormals->GetTuple(i, vz);
+            vtkMath::MultiplyScalar(vx, coordinate[0]);
+            vtkMath::MultiplyScalar(vy, coordinate[1]);
+            vtkMath::MultiplyScalar(vz, coordinate[2]);
+            vtkMath::Add(newp, vx, tmp1);
+            vtkMath::Add(tmp1, vy, tmp2);
+            vtkMath::Add(tmp2, vz, pp);
+            newCutCircle->InsertNextPoint(pp);
+
+            // find the deformation of fixed points
+            vtkIdType id = pointLocator->FindClosestPoint(p);
+            Is_Fixed[id] = true;
+            double deformationVector[3];
+            vtkMath::Subtract(pp, p, deformationVector);
+            DeformationField->SetTuple(id, deformationVector);
+        }
+
+        cutCircle->SetPoints(newCutCircle);
+        lastNewCircle->DeepCopy(cutCircle);
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(CutCircleLineUp);
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->Update();
+        cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+        cleanFilter->Update();
+        CutCircleLineUp->DeepCopy(cleanFilter->GetOutput());
+    }
+
+    // set the non-fixed points' Is_Fixed and DeformationField
+    vtkSmartPointer<vtkPointLocator> centerlinePointLocator = vtkSmartPointer<vtkPointLocator>::New();
+    centerlinePointLocator->SetDataSet(model);
+    centerlinePointLocator->BuildLocator();
+
+    ofstream file;
+    file.open("deformation_fixed.txt");
+    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        if(!Is_Fixed[i])
+        {
+            double p[3], cp[3], ncp[3];
+            t_colon->GetPoint(i, p);
+            vtkIdType centerid = centerlinePointLocator->FindClosestPoint(p);
+            model->GetPoint(centerid, cp);
+            newcenterline->GetPoint(centerid, ncp);
+            double deformationVector[3];
+            vtkMath::Subtract(ncp, cp, deformationVector);
+            DeformationField->SetTuple(i, deformationVector);
+        }
+
+        double v[3];
+        DeformationField->GetTuple(i, v);
+        double p[3];
+        t_colon->GetPoint(i, p);
+        std::cout<<i<<" -> "<<p[0]<<" "<<p[1]<<" "<<p[2]<<std::endl;
+        file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
+    }
+    file.close();
+
+    vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
+    CutCircleLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
+    CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
+    CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
+    t_rendermanager->renderModel(CutCircleLineUpActor);
+
+
+    vtkSmartPointer<vtkPoints> lineuppoints = vtkSmartPointer<vtkPoints>::New();
+    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        double v[3];
+        DeformationField->GetTuple(i, v);
+        double p[3], pp[3];
+        t_colon->GetPoint(i, p);
+        vtkMath::Add(p, v, pp);
+        lineuppoints->InsertNextPoint(pp);
+    }
+    SurfaceLineUp->DeepCopy(t_colon);
+    SurfaceLineUp->SetPoints(lineuppoints);
+    vtkSmartPointer<vtkPolyDataMapper> SurfaceLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    SurfaceLineUpMapper->SetInputData(SurfaceLineUp);
+    SurfaceLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> SurfaceLineUpActor = vtkSmartPointer<vtkActor>::New();
+    SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
+    t_rendermanager->renderModel(SurfaceLineUpActor);
+
+
+    free(Is_Fixed);
+    std::cout<<"Deformation End"<<endl;
+    return SurfaceLineUp;
+}

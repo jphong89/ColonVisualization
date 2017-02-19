@@ -37,8 +37,6 @@
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkTriangle.h>
 
-
-
 class Centerline : public Object
 {
 private:
@@ -62,6 +60,11 @@ public:
 
     vtkSmartPointer<vtkPolyData> EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> Deformation(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
+                                             vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                             vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                             vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                             vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
+    vtkSmartPointer<vtkPolyData> Deformation_v2(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,

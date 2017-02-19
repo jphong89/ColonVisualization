@@ -16,6 +16,7 @@
 #include <vtkTriangle.h>
 #include <vtkPointData.h>
 #include <cstring>
+#include <fstream>
 
 class FileManager
 {
@@ -25,6 +26,7 @@ public:
     void LoadNewFile(QString fileName);
     void SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename);
     vtkSmartPointer<vtkPolyData> readFileOFF(const char *filename);
+    void writeFileOff(vtkSmartPointer<vtkPolyData> polydata, const char *filename);
     vtkSmartPointer<vtkPolyData> getfile() {return m_polydata;}
 
 private:

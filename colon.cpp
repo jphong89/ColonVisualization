@@ -22,3 +22,22 @@ void Colon::AddTexture()
     }
     model->GetPointData()->SetScalars(colors);
 }
+void Colon::SmoothSurface()
+{
+    vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter = vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
+    smoothFilter->SetInputData(model);
+    smoothFilter->SetNumberOfIterations(15);
+    smoothFilter->SetRelaxationFactor(0.1);
+    smoothFilter->FeatureEdgeSmoothingOff();
+    smoothFilter->BoundarySmoothingOn();
+    smoothFilter->Update();
+    model->DeepCopy(smoothFilter->GetOutput());
+}
+void Colon::Decimation()
+{
+    vtkSmartPointer<vtkDecimatePro> decimate = vtkSmartPointer<vtkDecimatePro>::New();
+      decimate->SetInputData(model);
+      decimate->SetTargetReduction(.50); //10% reduction (if there was 100 triangles, now there will be 90)
+      decimate->Update();
+      model->DeepCopy(decimate->GetOutput());
+}
