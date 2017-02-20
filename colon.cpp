@@ -37,7 +37,18 @@ void Colon::Decimation()
 {
     vtkSmartPointer<vtkDecimatePro> decimate = vtkSmartPointer<vtkDecimatePro>::New();
       decimate->SetInputData(model);
-      decimate->SetTargetReduction(.50); //10% reduction (if there was 100 triangles, now there will be 90)
+      decimate->SetTargetReduction(.8); //10% reduction (if there was 100 triangles, now there will be 90)
       decimate->Update();
       model->DeepCopy(decimate->GetOutput());
+}
+void Colon::testDeformation()
+{
+    ofstream file;
+    file.open("/home/ruibinma/Desktop/testDeformation.txt");
+    file<<100<<" "<<100<<" "<<100<<" "<<1<<std::endl;
+    for(vtkIdType i = 1; i < model->GetNumberOfPoints(); i++)
+    {
+        file<<1<<" "<<1<<" "<<1<<" "<<0<<std::endl;
+    }
+    file.close();
 }

@@ -15,6 +15,7 @@ public:
     void AddTexture();
     void SmoothSurface();
     void Decimation();
+    void testDeformation();
 };
 
 #endif // COLON_H

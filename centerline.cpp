@@ -1614,7 +1614,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Normalize(projection);
         RefDirections->InsertNextTuple(projection);
     }
-    return Deformation(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+    return Deformation_v2(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return NULL;
 }
 
@@ -2414,7 +2414,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
     centerlinePointLocator->BuildLocator();
 
     ofstream file;
-    file.open("deformation_fixed.txt");
+    file.open("/home/ruibinma/Desktop/deformation_fixed.txt");
     for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
     {
         if(!Is_Fixed[i])
