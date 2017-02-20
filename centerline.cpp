@@ -2424,8 +2424,33 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
             vtkIdType centerid = centerlinePointLocator->FindClosestPoint(p);
             model->GetPoint(centerid, cp);
             newcenterline->GetPoint(centerid, ncp);
+
+            double told[3], nold[3], bold[3];
+            Tangents->GetTuple(centerid, told);
+            //Normals->GetTuple(i, nold);
+            RefDirections->GetTuple(centerid, nold);
+            vtkMath::Cross(told, nold, bold);
+
+            double vector[3];
+            vtkMath::Subtract(p, cp, vector);
+            double coordinate[3];
+            coordinate[0] = vtkMath::Dot(vector, told);
+            coordinate[1] = vtkMath::Dot(vector, nold);
+            coordinate[2] = vtkMath::Dot(vector, bold);
+            double pp[3];
+            double vx[3], vy[3], vz[3], tmp1[3], tmp2[3];
+            NewTangents->GetTuple(centerid, vx);
+            NewNormals->GetTuple(centerid, vy);
+            NewBinormals->GetTuple(centerid, vz);
+            vtkMath::MultiplyScalar(vx, coordinate[0]);
+            vtkMath::MultiplyScalar(vy, coordinate[1]);
+            vtkMath::MultiplyScalar(vz, coordinate[2]);
+            vtkMath::Add(ncp, vx, tmp1);
+            vtkMath::Add(tmp1, vy, tmp2);
+            vtkMath::Add(tmp2, vz, pp);
+
             double deformationVector[3];
-            vtkMath::Subtract(ncp, cp, deformationVector);
+            vtkMath::Subtract(pp, p, deformationVector);
             DeformationField->SetTuple(i, deformationVector);
         }
 
@@ -2433,7 +2458,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
         DeformationField->GetTuple(i, v);
         double p[3];
         t_colon->GetPoint(i, p);
-        std::cout<<i<<" -> "<<p[0]<<" "<<p[1]<<" "<<p[2]<<std::endl;
+        //std::cout<<i<<" -> "<<p[0]<<" "<<p[1]<<" "<<p[2]<<std::endl;
         file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
     }
     file.close();
@@ -2445,6 +2470,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
     CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
     t_rendermanager->renderModel(CutCircleLineUpActor);
+    std::cout<<"cutcircles have points"<<CutCircleLineUp->GetNumberOfPoints()<<endl;
 
 
     vtkSmartPointer<vtkPoints> lineuppoints = vtkSmartPointer<vtkPoints>::New();
