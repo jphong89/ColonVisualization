@@ -383,16 +383,30 @@ void Centerline::Smooth(vtkSmartPointer<vtkDoubleArray> Candidate, double std)
     free(G);
 }
 
-void Centerline::UniformSample(int resolution)
+void Centerline::UniformSample(int resolution, vtkSmartPointer<vtkPolyData> line)
 {
     vtkSmartPointer<vtkParametricSpline> spline = vtkSmartPointer<vtkParametricSpline>::New();
-    spline->SetPoints(model->GetPoints());
+    if(line == NULL)
+    {
+        spline->SetPoints(model->GetPoints());
+    }
+    else
+    {
+        spline->SetPoints(line->GetPoints());
+    }
     vtkSmartPointer<vtkParametricFunctionSource> functionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
     functionSource->SetParametricFunction(spline);
     functionSource->Update();
     functionSource->SetUResolution(resolution);
     functionSource->Update();
-    model->DeepCopy(functionSource->GetOutput());
+    if(line == NULL)
+    {
+        model->DeepCopy(functionSource->GetOutput());
+    }
+    else
+    {
+        line->DeepCopy(functionSource->GetOutput());
+    }
 }
 
 void Centerline::splineTangent(double *tangent, vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize)
@@ -1614,7 +1628,29 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Normalize(projection);
         RefDirections->InsertNextTuple(projection);
     }
-    return Deformation_v2(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+
+    /*
+    vtkSmartPointer<vtkPolyData> reconstruction = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> piece = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastpiece = vtkSmartPointer<vtkPolyData>::New();
+    for(vtkIdType i = 0; i <= model->GetNumberOfPoints(); i++)
+    {
+        vtkIdType left = i-1;
+        vtkIdType right = i;
+        piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, left, right, lastpiece);
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(piece);
+        appendFilter->AddInputData(reconstruction);
+        appendFilter->Update();
+        cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+        cleanFilter->Update();
+        reconstruction->DeepCopy(cleanFilter->GetOutput());
+        std::cout<<i-1<<"->"<<i<<" "<<piece->GetNumberOfPoints()<<endl;
+        lastpiece->DeepCopy(piece);
+    }
+    t_filemanager->SaveFile(reconstruction, "testpiece.stl");
+    */
+    return Deformation_v3(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return NULL;
 }
 
@@ -2496,4 +2532,402 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
     free(Is_Fixed);
     std::cout<<"Deformation End"<<endl;
     return SurfaceLineUp;
+}
+vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
+                                                     vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                                     vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                                     vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                                     vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager *t_filemanager)
+{
+    //PutNormalsOnSameSide(Normals, Curvatures);
+    std::cout<<"Deformation"<<endl;
+    bool straight = true;
+    // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
+    double point[3], nextpoint[3];
+    double tangent[3], nexttangent[3];
+    double normal[3], nextnormal[3];
+    double binormal[3];
+    double ds, curvature;
+    vtkSmartPointer<vtkDoubleArray> NewTangents = vtkSmartPointer<vtkDoubleArray>::New();
+    NewTangents->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkDoubleArray> NewNormals = vtkSmartPointer<vtkDoubleArray>::New();
+    NewNormals->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkDoubleArray> NewBinormals = vtkSmartPointer<vtkDoubleArray>::New();
+    NewBinormals->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+    for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
+    {
+        if(i == 0)
+        {
+            model->GetPoint(0, point);
+            point[0] = point[0] + 60;
+            binormal[0] = 0;
+            binormal[1] = 0;
+            binormal[2] = 1;
+            tangent[0] = 1;
+            tangent[1] = 0;
+            tangent[2] = 0;
+            normal[0] = 0;
+            normal[1] = 1;
+            normal[2] = 0;
+        }
+        ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+        curvature = Curvatures->GetValue(i);
+
+        // Record the New Axis System
+        NewTangents->InsertNextTuple(tangent);
+        NewNormals->InsertNextTuple(normal);
+        NewBinormals->InsertNextTuple(binormal);
+
+        double dnormal[3];
+        if(straight)
+        {
+            dnormal[0] = 0; dnormal[1] = 0; dnormal[2] = 0;
+        }
+        else
+        {
+            dnormal[0] = tangent[0]; dnormal[1] = tangent[1]; dnormal[2] = tangent[2];
+            double RelaxationFactor = 2;
+            vtkMath::MultiplyScalar(dnormal, -curvature / RelaxationFactor);
+        }
+        vtkMath::Add(normal, dnormal, nextnormal);
+        vtkMath::Normalize(nextnormal);
+        //std::cout<<i<<"\ts="<<S->GetValue(i)<<"("<<ds<<")"<<"\tk="<<curvature<<endl;
+        vtkMath::Cross(nextnormal, binormal, nexttangent);
+        vtkMath::Normalize(nexttangent);
+        vtkMath::MultiplyScalar(tangent, ds);
+        vtkMath::Add(point, tangent, nextpoint);
+        newpoints->InsertNextPoint(point);
+
+        point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        normal[0] = nextnormal[0]; normal[1] = nextnormal[1]; normal[2] = nextnormal[2];
+        tangent[0] = nexttangent[0]; tangent[1] = nexttangent[1]; tangent[2] = nexttangent[2];
+    }
+
+    vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
+    newcenterline->SetPoints(newpoints);
+    vtkSmartPointer<vtkVertexGlyphFilter> newVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    newVertexFilter->SetInputData(newcenterline);
+    newVertexFilter->Update();
+    vtkSmartPointer<vtkPolyDataMapper> newMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
+    vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
+    newActor->SetMapper(newMapper);
+    t_rendermanager->renderModel(newActor);
+
+    // Line Up the Cross Sections
+    vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
+    cutter->SetInputData(t_colon);
+
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    connectivityFilter->SetInputConnection(cutter->GetOutputPort());
+    connectivityFilter->SetExtractionModeToClosestPointRegion();
+
+    //vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> CutCircleLineUp = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastCircle = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastNewCircle = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> CutCircleOrigin = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> SurfaceLineUp = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPointLocator> pointLocator = vtkSmartPointer<vtkPointLocator>::New();
+    pointLocator->SetDataSet(t_colon);
+    pointLocator->BuildLocator();
+
+    bool* Is_Fixed = (bool*)malloc(sizeof(bool) * t_colon->GetNumberOfPoints());
+    memset(Is_Fixed, 0, sizeof(bool) * t_colon->GetNumberOfPoints());
+    vtkSmartPointer<vtkDoubleArray> DeformationField = vtkSmartPointer<vtkDoubleArray>::New();
+    DeformationField->SetNumberOfComponents(3);
+    DeformationField->SetNumberOfTuples(t_colon->GetNumberOfPoints());
+    vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+    vtkSmartPointer<vtkPolyData> piece = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> transformedpiece = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastpiece = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> source = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> target = vtkSmartPointer<vtkPolyData>::New();
+
+    for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
+    {
+        //vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+        double newp[3], oldp[3];
+        newcenterline->GetPoint(i, newp);
+        model->GetPoint(i, oldp);
+        double told[3], nold[3], bold[3];
+        Tangents->GetTuple(i, told);
+
+        //Normals->GetTuple(i, nold);
+        RefDirections->GetTuple(i, nold);
+
+        vtkMath::Cross(told, nold, bold);
+
+        plane->SetOrigin(PlaneOriginals->GetTuple(i));
+        plane->SetNormal(PlaneNormals->GetTuple(i));
+        cutter->SetCutFunction(plane);
+        cutter->Update();
+
+        connectivityFilter->SetClosestPoint(oldp);
+        connectivityFilter->SetInputData(cutter->GetOutput());
+        connectivityFilter->Update();
+
+        vtkSmartPointer<vtkPolyData> cutCircle = vtkSmartPointer<vtkPolyData>::New();
+        cutCircle = connectivityFilter->GetOutput();
+        //std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
+
+        if(i != 0)
+        {
+            for(vtkIdType j = 0; j<lastCircle->GetNumberOfPoints(); j++)
+            {
+                if(cutCircle->GetNumberOfPoints() >= 100)
+                    break;
+                connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
+                connectivityFilter->Update();
+                cutCircle = connectivityFilter->GetOutput();
+            }
+        }
+
+        // build source landmarks
+        UniformSample(20,ReorderContour(cutCircle));
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->AddInputData(lastCircle);
+        appendFilter->Update();
+        source->ShallowCopy(appendFilter->GetOutput());
+
+
+        lastCircle->DeepCopy(cutCircle);
+
+        vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
+
+        for(vtkIdType j=0; j<cutCircle->GetNumberOfPoints(); j++)
+        {
+            double p[3];
+            cutCircle->GetPoint(j, p);
+            double vector[3];
+            vtkMath::Subtract(p, oldp, vector);
+            double coordinate[3];
+            coordinate[0] = vtkMath::Dot(vector, told);
+            coordinate[1] = vtkMath::Dot(vector, nold);
+            coordinate[2] = vtkMath::Dot(vector, bold);
+            double pp[3];
+            double vx[3], vy[3], vz[3], tmp1[3], tmp2[3];
+            NewTangents->GetTuple(i, vx);
+            NewNormals->GetTuple(i, vy);
+            NewBinormals->GetTuple(i, vz);
+            vtkMath::MultiplyScalar(vx, coordinate[0]);
+            vtkMath::MultiplyScalar(vy, coordinate[1]);
+            vtkMath::MultiplyScalar(vz, coordinate[2]);
+            vtkMath::Add(newp, vx, tmp1);
+            vtkMath::Add(tmp1, vy, tmp2);
+            vtkMath::Add(tmp2, vz, pp);
+            newCutCircle->InsertNextPoint(pp);
+        }
+        cutCircle->SetPoints(newCutCircle);
+        // build target landmarks
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->AddInputData(lastNewCircle);
+        appendFilter->Update();
+        target->ShallowCopy(appendFilter->GetOutput());
+
+        lastNewCircle->DeepCopy(cutCircle);
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(CutCircleLineUp);
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->Update();
+        //cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+        //cleanFilter->Update();
+        CutCircleLineUp->DeepCopy(appendFilter->GetOutput());
+
+        if(i < 3)
+        {
+        piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, i-1, i, lastpiece);
+        vtkSmartPointer<vtkThinPlateSplineTransform> transform = vtkSmartPointer<vtkThinPlateSplineTransform>::New();
+        transform->SetSourceLandmarks(source->GetPoints());
+        transform->SetTargetLandmarks(target->GetPoints());
+        transform->SetBasisToR();
+        transformFilter->RemoveAllInputs();
+        transformFilter->SetInputData(piece);
+        transformFilter->SetTransform(transform);
+        transformFilter->Update();
+        transformedpiece->ShallowCopy(transformFilter->GetOutput());
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(SurfaceLineUp);
+        appendFilter->AddInputData(transformedpiece);
+        appendFilter->Update();
+        cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+        cleanFilter->Update();
+        SurfaceLineUp->DeepCopy(cleanFilter->GetOutput());
+        std::cout<<i<<" "<<SurfaceLineUp->GetNumberOfPoints()<<" "<<piece->GetNumberOfPoints()<<endl;
+        }
+    }
+
+    // the very last piece
+    if(0)
+    {
+    source->ShallowCopy(lastCircle);
+    target->ShallowCopy(lastNewCircle);
+    piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, model->GetNumberOfPieces()-1, model->GetNumberOfPoints(), lastpiece);
+    vtkSmartPointer<vtkThinPlateSplineTransform> transform = vtkSmartPointer<vtkThinPlateSplineTransform>::New();
+    transform->SetSourceLandmarks(source->GetPoints());
+    transform->SetTargetLandmarks(target->GetPoints());
+    transform->SetBasisToR();
+    transformFilter->RemoveAllInputs();
+    transformFilter->SetInputData(piece);
+    transformFilter->SetTransform(transform);
+    transformFilter->Update();
+    transformedpiece->ShallowCopy(transformFilter->GetOutput());
+    appendFilter->RemoveAllInputs();
+    appendFilter->AddInputData(SurfaceLineUp);
+    appendFilter->AddInputData(transformedpiece);
+    appendFilter->Update();
+    cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+    cleanFilter->Update();
+    SurfaceLineUp->DeepCopy(cleanFilter->GetOutput());
+    std::cout<<model->GetNumberOfPoints()<<" "<<SurfaceLineUp->GetNumberOfPoints()<<" "<<piece->GetNumberOfPoints()<<endl;
+    }
+    //
+
+    std::cout<<"cutcircles have points"<<CutCircleOrigin->GetNumberOfPoints()<<endl;
+    std::cout<<"cutcircles have points"<<CutCircleLineUp->GetNumberOfPoints()<<endl;
+
+    vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
+    CutCircleLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
+    CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
+    CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
+    t_rendermanager->renderModel(CutCircleLineUpActor);
+
+    vtkSmartPointer<vtkPolyDataMapper> SurfaceLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    SurfaceLineUpMapper->SetInputData(SurfaceLineUp);
+    SurfaceLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> SurfaceLineUpActor = vtkSmartPointer<vtkActor>::New();
+    SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
+    t_rendermanager->renderModel(SurfaceLineUpActor);
+
+    std::cout<<"Deformation End"<<endl;
+    return SurfaceLineUp;
+}
+vtkSmartPointer<vtkPolyData> Centerline::PieceBetweenPlanes(vtkSmartPointer<vtkPolyData> t_colon,
+                                                            vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                                            vtkIdType left, vtkIdType right, vtkSmartPointer<vtkPolyData> lastpiece)
+{
+    assert(left == right - 1);
+    int threshold = 300;
+    vtkSmartPointer<vtkClipPolyData> clipper = vtkSmartPointer<vtkClipPolyData>::New();
+    clipper->SetInputData(t_colon);
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    connectivityFilter->SetInputConnection(clipper->GetOutputPort());
+    connectivityFilter->SetExtractionModeToClosestPointRegion();
+    vtkSmartPointer<vtkPolyData> output = vtkSmartPointer<vtkPolyData>::New();
+    if(left < 0) // the section before the first plane
+    {
+        vtkSmartPointer<vtkPlane> planeright = vtkSmartPointer<vtkPlane>::New();
+        double originright[3], normalright[3];
+        PlaneOriginals->GetTuple(right, originright);
+        PlaneNormals->GetTuple(right, normalright);
+        vtkMath::MultiplyScalar(normalright, -1);
+        planeright->SetOrigin(originright);
+        planeright->SetNormal(normalright);
+        clipper->SetClipFunction(planeright);
+        clipper->Update();
+        double centerpoint[3];
+        model->GetPoint(right, centerpoint);
+        connectivityFilter->SetClosestPoint(centerpoint);
+        connectivityFilter->Update();
+        output->DeepCopy(connectivityFilter->GetOutput());
+    }
+    else if(right >= model->GetNumberOfPoints())
+    {
+        vtkSmartPointer<vtkPlane> planeleft = vtkSmartPointer<vtkPlane>::New();
+        double originleft[3], normalleft[3];
+        PlaneOriginals->GetTuple(left, originleft);
+        PlaneNormals->GetTuple(left, normalleft);
+        planeleft->SetOrigin(originleft);
+        planeleft->SetNormal(normalleft);
+        clipper->SetClipFunction(planeleft);
+        clipper->Update();
+        double centerpoint[3];
+        model->GetPoint(left, centerpoint);
+        connectivityFilter->SetClosestPoint(centerpoint);
+        connectivityFilter->Update();
+        output->DeepCopy(connectivityFilter->GetOutput());
+
+        if(output->GetNumberOfPoints() < threshold)
+        {
+            double p[3];
+            for(vtkIdType j = 0; j < lastpiece->GetNumberOfPoints(); j++)
+            {
+                lastpiece->GetPoint(j, p);
+                connectivityFilter->SetClosestPoint(p);
+                connectivityFilter->Update();
+                output->DeepCopy(connectivityFilter->GetOutput());
+                if(output->GetNumberOfPoints() >= threshold)
+                    break;
+            }
+        }
+    }
+    else
+    {
+        vtkSmartPointer<vtkPlane> planeright = vtkSmartPointer<vtkPlane>::New();
+        double originright[3], normalright[3];
+        PlaneOriginals->GetTuple(right, originright);
+        PlaneNormals->GetTuple(right, normalright);
+        vtkMath::MultiplyScalar(normalright, -1);
+        planeright->SetOrigin(originright);
+        planeright->SetNormal(normalright);
+        clipper->SetClipFunction(planeright);
+        clipper->Update();
+
+        vtkSmartPointer<vtkPolyData> temp = vtkSmartPointer<vtkPolyData>::New();
+        temp->DeepCopy(clipper->GetOutput());
+        clipper->RemoveAllInputs();
+        clipper->SetInputData(temp);
+
+        vtkSmartPointer<vtkPlane> planeleft = vtkSmartPointer<vtkPlane>::New();
+        double originleft[3], normalleft[3];
+        PlaneOriginals->GetTuple(left, originleft);
+        PlaneNormals->GetTuple(left, normalleft);
+        planeleft->SetOrigin(originleft);
+        planeleft->SetNormal(normalleft);
+        clipper->SetClipFunction(planeleft);
+        clipper->Update();
+
+        double centerpointleft[3], centerpointright[3];
+        model->GetPoint(left, centerpointleft);
+        model->GetPoint(right, centerpointright);
+        double centerpoint[3];
+        vtkMath::Add(centerpointleft, centerpointright, centerpoint);
+        vtkMath::MultiplyScalar(centerpoint, 0.5);
+        connectivityFilter->SetClosestPoint(centerpoint);
+        connectivityFilter->Update();
+
+        output->DeepCopy(connectivityFilter->GetOutput());
+
+        if(output->GetNumberOfPoints() < threshold)
+        {
+            double p[3];
+            for(vtkIdType j = 0; j < lastpiece->GetNumberOfPoints(); j++)
+            {
+                lastpiece->GetPoint(j, p);
+                connectivityFilter->SetClosestPoint(p);
+                connectivityFilter->Update();
+                output->DeepCopy(connectivityFilter->GetOutput());
+                if(output->GetNumberOfPoints() >= threshold)
+                    break;
+            }
+        }
+    }
+    return output;
 }

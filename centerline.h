@@ -36,6 +36,8 @@
 #include <vtkFeatureEdges.h>
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkTriangle.h>
+#include <vtkClipPolyData.h>
+#include <vtkDecimatePro.h>
 
 class Centerline : public Object
 {
@@ -52,7 +54,7 @@ public:
     void Smooth(vtkSmartPointer<vtkDoubleArray> Candidate, double std);
     void GaussianTangents(vtkSmartPointer<vtkDoubleArray> Tangents, double std);
     void GaussianNormals(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkDoubleArray> Tangents, double std);
-    void UniformSample(int resolution);
+    void UniformSample(int resolution, vtkSmartPointer<vtkPolyData> line = NULL);
     void splineTangent(double *tangent, vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize);
     void splineNormal(double *normal, vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize, double &curvature);
     void PutNormalsOnSameSide(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures);
@@ -69,6 +71,11 @@ public:
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                              vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
+    vtkSmartPointer<vtkPolyData> Deformation_v3(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
+                                             vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                             vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                             vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                             vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
     void VisualizeTNB(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                       vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Binormals,
                       RenderManager* t_rendermanager);
@@ -80,6 +87,9 @@ public:
     void ContoursToSurface(RenderManager* t_rendermanager, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> ConnectTwoContours(vtkSmartPointer<vtkPolyData> circle1, vtkSmartPointer<vtkPolyData> circle2);
     void ConnectTwoContoursTest(RenderManager* t_rendermanager, FileManager* t_filemanager);
+    vtkSmartPointer<vtkPolyData> PieceBetweenPlanes(vtkSmartPointer<vtkPolyData> t_colon,
+                                                    vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                                    vtkIdType left, vtkIdType right, vtkSmartPointer<vtkPolyData> lastpiece = NULL);
 };
 
 #endif // CENTERLINE_H
