@@ -4,6 +4,7 @@
 #include "object.h"
 #include <vtkSmoothPolyDataFilter.h>
 #include <vtkDecimatePro.h>
+#include <vtkFillHolesFilter.h>
 
 class Colon : public Object
 {
@@ -16,6 +17,7 @@ public:
     void SmoothSurface();
     void Decimation();
     void testDeformation();
+    void FillHoles(vtkSmartPointer<vtkPolyData> object = NULL);
 };
 
 #endif // COLON_H

@@ -26,7 +26,7 @@ void Colon::SmoothSurface()
 {
     vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter = vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
     smoothFilter->SetInputData(model);
-    smoothFilter->SetNumberOfIterations(15);
+    smoothFilter->SetNumberOfIterations(20);
     smoothFilter->SetRelaxationFactor(0.1);
     smoothFilter->FeatureEdgeSmoothingOff();
     smoothFilter->BoundarySmoothingOn();
@@ -51,4 +51,18 @@ void Colon::testDeformation()
         file<<1<<" "<<1<<" "<<1<<" "<<0<<std::endl;
     }
     file.close();
+}
+void Colon::FillHoles(vtkSmartPointer<vtkPolyData> object)
+{
+    vtkSmartPointer<vtkFillHolesFilter> filter = vtkSmartPointer<vtkFillHolesFilter>::New();
+    if(!object)
+        filter->SetInputData(model);
+    else
+        filter->SetInputData(object);
+    filter->SetHoleSize(100000.0);
+    filter->Update();
+    if(!object)
+        model->DeepCopy(filter->GetOutput());
+    else
+        object->DeepCopy(filter->GetOutput());
 }

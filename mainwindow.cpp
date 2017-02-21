@@ -43,16 +43,29 @@ void MainWindow::on_actionNew_file_triggered()
 
     m_filemanager->LoadNewFile(filePath);
     m_colon->Object::SetInput(m_filemanager->getfile());
-    //m_colon->SmoothSurface();
+    m_colon->SmoothSurface();
     //m_colon->Decimation();
     //m_colon->SmoothSurface();
     //m_rendermanager->GetRender()->SetBackground(0.1,0.6, 1);
     //m_colon->AddTexture();
     //addlight();
     //m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
+
+/*
+    vtkSmartPointer<vtkPolyData> testcutcircle = vtkSmartPointer<vtkPolyData>::New();
+    testcutcircle = m_centerline->ReorderContour(m_colon->GetOutput());
+    testcutcircle = m_colon->GetOutput();
+    std::cout<<testcutcircle->GetNumberOfPoints()<<endl;
+    m_centerline->UniformSample(20, testcutcircle);
+    std::cout<<testcutcircle->GetNumberOfPoints()<<endl;
+    m_colon->Object::SetInput(testcutcircle);
+    */
+
+    //m_colon->FillHoles();
+    //m_colon->SmoothSurface();
     m_rendermanager->renderModel(m_colon->GetActor());
-    m_colon->testDeformation();
-    m_filemanager->SaveFile(m_colon->GetOutput(), "/home/ruibinma/Desktop/colon.off");
+    //m_colon->testDeformation();
+    //m_filemanager->SaveFile(m_colon->GetOutput(), "/home/ruibinma/Desktop/colon.off");
 
     QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
     widget->GetRenderWindow()->Render();

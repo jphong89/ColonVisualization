@@ -2360,7 +2360,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
     DeformationField->SetNumberOfComponents(3);
     DeformationField->SetNumberOfTuples(t_colon->GetNumberOfPoints());
 
-    for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
+    for(vtkIdType i = 0; i < model->GetNumberOfPoints(); i++)
     {
         //vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
         double newp[3], oldp[3];
@@ -2398,6 +2398,11 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
                 cutCircle = connectivityFilter->GetOutput();
             }
         }
+
+        // down sample the cutCircle
+        cutCircle->DeepCopy(ReorderContour(cutCircle));
+        UniformSample(30, cutCircle);
+
         lastCircle->DeepCopy(cutCircle);
         vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
 
@@ -2443,7 +2448,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
         cleanFilter->Update();
         CutCircleLineUp->DeepCopy(cleanFilter->GetOutput());
     }
-
     // set the non-fixed points' Is_Fixed and DeformationField
     vtkSmartPointer<vtkPointLocator> centerlinePointLocator = vtkSmartPointer<vtkPointLocator>::New();
     centerlinePointLocator->SetDataSet(model);
@@ -2494,7 +2498,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
         DeformationField->GetTuple(i, v);
         double p[3];
         t_colon->GetPoint(i, p);
-        //std::cout<<i<<" -> "<<p[0]<<" "<<p[1]<<" "<<p[2]<<std::endl;
+        std::cout<<i<<" -> "<<p[0]<<" "<<p[1]<<" "<<p[2]<<" + "<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
         file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
     }
     file.close();
@@ -2693,7 +2697,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
         }
 
         // build source landmarks
-        UniformSample(20,ReorderContour(cutCircle));
+        cutCircle->DeepCopy(ReorderContour(cutCircle));
+        UniformSample(80, cutCircle);
 
         appendFilter->RemoveAllInputs();
         appendFilter->AddInputData(cutCircle);
@@ -2748,9 +2753,10 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
         //cleanFilter->Update();
         CutCircleLineUp->DeepCopy(appendFilter->GetOutput());
 
-        if(i < 3)
+        if(1)
         {
         piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, i-1, i, lastpiece);
+        lastpiece->DeepCopy(piece);
         vtkSmartPointer<vtkThinPlateSplineTransform> transform = vtkSmartPointer<vtkThinPlateSplineTransform>::New();
         transform->SetSourceLandmarks(source->GetPoints());
         transform->SetTargetLandmarks(target->GetPoints());
@@ -2773,11 +2779,12 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     }
 
     // the very last piece
-    if(0)
+    if(1)
     {
     source->ShallowCopy(lastCircle);
     target->ShallowCopy(lastNewCircle);
-    piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, model->GetNumberOfPieces()-1, model->GetNumberOfPoints(), lastpiece);
+    piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, model->GetNumberOfPoints()-1, model->GetNumberOfPoints(), lastpiece);
+    lastpiece->DeepCopy(piece);
     vtkSmartPointer<vtkThinPlateSplineTransform> transform = vtkSmartPointer<vtkThinPlateSplineTransform>::New();
     transform->SetSourceLandmarks(source->GetPoints());
     transform->SetTargetLandmarks(target->GetPoints());
@@ -2807,7 +2814,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
     CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
-    t_rendermanager->renderModel(CutCircleLineUpActor);
+    //t_rendermanager->renderModel(CutCircleLineUpActor);
 
     vtkSmartPointer<vtkPolyDataMapper> SurfaceLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     SurfaceLineUpMapper->SetInputData(SurfaceLineUp);
@@ -2816,6 +2823,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
     t_rendermanager->renderModel(SurfaceLineUpActor);
 
+    t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v31.stl");
+
     std::cout<<"Deformation End"<<endl;
     return SurfaceLineUp;
 }
@@ -2823,6 +2832,7 @@ vtkSmartPointer<vtkPolyData> Centerline::PieceBetweenPlanes(vtkSmartPointer<vtkP
                                                             vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                                             vtkIdType left, vtkIdType right, vtkSmartPointer<vtkPolyData> lastpiece)
 {
+    std::cout<<left<<" to "<<right<<endl;
     assert(left == right - 1);
     int threshold = 300;
     vtkSmartPointer<vtkClipPolyData> clipper = vtkSmartPointer<vtkClipPolyData>::New();
