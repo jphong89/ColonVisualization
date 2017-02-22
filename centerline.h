@@ -38,6 +38,7 @@
 #include <vtkTriangle.h>
 #include <vtkClipPolyData.h>
 #include <vtkDecimatePro.h>
+#include <vtkDijkstraGraphGeodesicPath.h>
 
 class Centerline : public Object
 {
@@ -71,7 +72,12 @@ public:
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                              vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
-    vtkSmartPointer<vtkPolyData> Deformation_v3(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
+    vtkSmartPointer<vtkPolyData> Deformation_v3(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
+                                             vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                             vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                             vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                             vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
+    vtkSmartPointer<vtkPolyData> Deformation_v4(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
@@ -91,7 +97,7 @@ public:
                                                     vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                                     vtkIdType left, vtkIdType right, vtkSmartPointer<vtkPolyData> lastpiece = NULL);
     vtkIdType GetTheSectionIdOfAPoint(vtkSmartPointer<vtkPolyData> t_colon, vtkIdType pointid,
-                                      vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals);
+                                      vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals, vtkSmartPointer<vtkIdList> CurvaturePointIds);
 };
 
 #endif // CENTERLINE_H
