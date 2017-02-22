@@ -90,6 +90,8 @@ public:
     vtkSmartPointer<vtkPolyData> PieceBetweenPlanes(vtkSmartPointer<vtkPolyData> t_colon,
                                                     vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                                     vtkIdType left, vtkIdType right, vtkSmartPointer<vtkPolyData> lastpiece = NULL);
+    vtkIdType GetTheSectionIdOfAPoint(vtkSmartPointer<vtkPolyData> t_colon, vtkIdType pointid,
+                                      vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals);
 };
 
 #endif // CENTERLINE_H

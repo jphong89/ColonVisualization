@@ -1650,8 +1650,12 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     }
     t_filemanager->SaveFile(reconstruction, "testpiece.stl");
     */
-    return Deformation_v3(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    //return NULL;
+    //return Deformation_v3(S, Curvatures, Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        std::cout<<i<<" belongs to "<<GetTheSectionIdOfAPoint(t_colon, i, PlaneOriginals, PlaneNormals)<<endl;
+    }
+    return NULL;
 }
 
 void CreateCircle( const double& z, const double& radius, const int& resolution, vtkPolyData* polyData )
@@ -2656,6 +2660,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     vtkSmartPointer<vtkPolyData> lastpiece = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> source = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> target = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    int count = 0;
 
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
     {
@@ -2697,8 +2703,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
         }
 
         // build source landmarks
-        cutCircle->DeepCopy(ReorderContour(cutCircle));
-        UniformSample(80, cutCircle);
+        //cutCircle->DeepCopy(ReorderContour(cutCircle));
+        //UniformSample(20, cutCircle);
 
         appendFilter->RemoveAllInputs();
         appendFilter->AddInputData(cutCircle);
@@ -2755,7 +2761,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
 
         if(1)
         {
-        piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, i-1, i, lastpiece);
+            /*
+        piece = PieceBetweenPlanes(PointCloud, PlaneOriginals, PlaneNormals, i-1, i, lastpiece);
         lastpiece->DeepCopy(piece);
         vtkSmartPointer<vtkThinPlateSplineTransform> transform = vtkSmartPointer<vtkThinPlateSplineTransform>::New();
         transform->SetSourceLandmarks(source->GetPoints());
@@ -2766,7 +2773,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
         transformFilter->SetTransform(transform);
         transformFilter->Update();
         transformedpiece->ShallowCopy(transformFilter->GetOutput());
-
         appendFilter->RemoveAllInputs();
         appendFilter->AddInputData(SurfaceLineUp);
         appendFilter->AddInputData(transformedpiece);
@@ -2774,16 +2780,18 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
         cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
         cleanFilter->Update();
         SurfaceLineUp->DeepCopy(cleanFilter->GetOutput());
-        std::cout<<i<<" "<<SurfaceLineUp->GetNumberOfPoints()<<" "<<piece->GetNumberOfPoints()<<endl;
+        std::cout<<i<<" "<<SurfaceLineUp->GetNumberOfPoints()<<" "<<points->GetNumberOfPoints()<<endl;
+        */
         }
     }
 
     // the very last piece
     if(1)
     {
+        /*
     source->ShallowCopy(lastCircle);
     target->ShallowCopy(lastNewCircle);
-    piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, model->GetNumberOfPoints()-1, model->GetNumberOfPoints(), lastpiece);
+    piece = PieceBetweenPlanes(PointCloud, PlaneOriginals, PlaneNormals, model->GetNumberOfPoints()-1, model->GetNumberOfPoints(), lastpiece);
     lastpiece->DeepCopy(piece);
     vtkSmartPointer<vtkThinPlateSplineTransform> transform = vtkSmartPointer<vtkThinPlateSplineTransform>::New();
     transform->SetSourceLandmarks(source->GetPoints());
@@ -2802,11 +2810,11 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     cleanFilter->Update();
     SurfaceLineUp->DeepCopy(cleanFilter->GetOutput());
     std::cout<<model->GetNumberOfPoints()<<" "<<SurfaceLineUp->GetNumberOfPoints()<<" "<<piece->GetNumberOfPoints()<<endl;
+    */
     }
     //
 
-    std::cout<<"cutcircles have points"<<CutCircleOrigin->GetNumberOfPoints()<<endl;
-    std::cout<<"cutcircles have points"<<CutCircleLineUp->GetNumberOfPoints()<<endl;
+
 
     vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
@@ -2816,6 +2824,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
     //t_rendermanager->renderModel(CutCircleLineUpActor);
 
+    /*
     vtkSmartPointer<vtkPolyDataMapper> SurfaceLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     SurfaceLineUpMapper->SetInputData(SurfaceLineUp);
     SurfaceLineUpMapper->Update();
@@ -2824,6 +2833,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     t_rendermanager->renderModel(SurfaceLineUpActor);
 
     t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v31.stl");
+    */
 
     std::cout<<"Deformation End"<<endl;
     return SurfaceLineUp;
@@ -2940,4 +2950,73 @@ vtkSmartPointer<vtkPolyData> Centerline::PieceBetweenPlanes(vtkSmartPointer<vtkP
         }
     }
     return output;
+}
+vtkIdType Centerline::GetTheSectionIdOfAPoint(vtkSmartPointer<vtkPolyData> t_colon, vtkIdType pointid,
+                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals)
+{
+    double p[3], vl[3], vr[3], cpl[3], cpr[3], cp[3];
+    t_colon->GetPoint(pointid, p);
+    double originright[3], normalright[3], originleft[3], normalleft[3];
+    double minDis2 = INFINITY, dis2;
+    vtkIdType output;
+    vtkIdType left, right;
+
+    for(vtkIdType i = 0; i <= model->GetNumberOfPoints(); i++)
+    {
+        left = i-1; right = i;
+        if(left < 0)
+        {
+            PlaneOriginals->GetTuple(right, originright);
+            PlaneNormals->GetTuple(right, normalright);
+            vtkMath::Subtract(p, originright, vr);
+            if(vtkMath::Dot(vr, normalright) < 0)
+            {
+                model->GetPoint(right, cpr);
+                dis2 = vtkMath::Distance2BetweenPoints(p, cpr);
+                if(dis2 < minDis2)
+                {
+                    minDis2 = dis2;
+                    output = i;
+                }
+            }
+        }
+        else if(right >= model->GetNumberOfPoints())
+        {
+            PlaneOriginals->GetTuple(left, originleft);
+            PlaneNormals->GetTuple(left, normalleft);
+            vtkMath::Subtract(p, originleft, vl);
+            if(vtkMath::Dot(vl, normalleft) >= 0)
+            {
+                model->GetPoint(left, cpl);
+                dis2 = vtkMath::Distance2BetweenPoints(p, cpl);
+                if(dis2 < minDis2)
+                {
+                    minDis2 = dis2;
+                    output = i;
+                }
+            }
+        }
+        else
+        {
+            PlaneOriginals->GetTuple(right, originright);
+            PlaneNormals->GetTuple(right, normalright);
+            PlaneOriginals->GetTuple(left, originleft);
+            PlaneNormals->GetTuple(left, normalleft);
+            vtkMath::Subtract(p, originright, vr);
+            vtkMath::Subtract(p, originleft, vl);
+            if(vtkMath::Dot(vl, normalleft) >= 0 && vtkMath::Dot(vr, normalright) < 0)
+            {
+                model->GetPoint(left, cpl);
+                model->GetPoint(right, cpr);
+                vtkMath::Add(cpl, cpr, cp);
+                vtkMath::MultiplyScalar(cp, 0.5);
+                dis2 = vtkMath::Distance2BetweenPoints(p, cp);
+                if(dis2 < minDis2)
+                {
+                    minDis2 = dis2;
+                    output = i;
+                }
+            }
+        }
+    }
 }
