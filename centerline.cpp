@@ -1581,6 +1581,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             PlaneNormals->SetTuple(ViolationHead->GetId(i) + j - 1, t);
             //std::cout<<"set "<<ViolationHead->GetId(i)+j-1<<endl;
 
+            /* //visualize the modified cutcircle in yello
             newcutter->SetCutFunction(newplane);
             newcutter->Update();
             double centerPoint[3];
@@ -1597,9 +1598,11 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             newcleanFilter->SetInputConnection(newappendFilter->GetOutputPort());
             newcleanFilter->Update();
             NewCutlines->DeepCopy(newcleanFilter->GetOutput());
+            */
         }
     }
 
+    /* // visualize the new cutcircles in yello
     vtkSmartPointer<vtkPolyDataMapper> NewCutlinesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     NewCutlinesMapper->SetInputData(NewCutlines);
     NewCutlinesMapper->Update();
@@ -1607,6 +1610,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     NewCutlinesActor->SetMapper(NewCutlinesMapper);
     NewCutlinesActor->GetProperty()->SetColor(2, 1, 0);
     t_rendermanager->renderModel(NewCutlinesActor);
+    */
 
     /*
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
@@ -2640,8 +2644,10 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
 
     vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
 
+    vtkSmartPointer<vtkPolyData> OriginCutCircle = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> CutCircleLineUp = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> lastCircle = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> reflastCircle = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> lastNewCircle = vtkSmartPointer<vtkPolyData>::New();
 
     vtkSmartPointer<vtkPolyData> SurfaceLineUp = vtkSmartPointer<vtkPolyData>::New();
@@ -2730,7 +2736,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
         //std::cout<<i<<" "<<"cutline points:"<<cutCircle->GetNumberOfPoints()<<endl;
         if(i != 0)
         {
-            for(vtkIdType j = 0; j<lastCircle->GetNumberOfPoints(); j++)
+            for(vtkIdType j = 0; j<reflastCircle->GetNumberOfPoints(); j++)
             {
 
                 if(cutCircle->GetNumberOfPoints() >= 100)
@@ -2740,16 +2746,21 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
                 cutCircle = connectivityFilter->GetOutput();
             }
         }
+        reflastCircle->DeepCopy(cutCircle);
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->AddInputData(OriginCutCircle);
+        appendFilter->Update();
+        OriginCutCircle->DeepCopy(appendFilter->GetOutput());
+
         // build source landmarks
         cutCircle->DeepCopy(ReorderContour(cutCircle));
         UniformSample(40, cutCircle);
-
         appendFilter->RemoveAllInputs();
         appendFilter->AddInputData(cutCircle);
         appendFilter->AddInputData(lastCircle);
         appendFilter->Update();
         source->ShallowCopy(appendFilter->GetOutput());
-
         lastCircle->DeepCopy(cutCircle);
 
         vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
@@ -2868,6 +2879,14 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
 
     SurfaceLineUp->DeepCopy(t_colon);
     SurfaceLineUp->SetPoints(points);
+
+    vtkSmartPointer<vtkPolyDataMapper> OriginCutCircleMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    OriginCutCircleMapper->SetInputData(OriginCutCircle);
+    OriginCutCircleMapper->Update();
+    vtkSmartPointer<vtkActor> OriginCutCircleActor = vtkSmartPointer<vtkActor>::New();
+    OriginCutCircleActor->SetMapper(OriginCutCircleMapper);
+    OriginCutCircleActor->GetProperty()->SetColor(0, 0, 1);
+    t_rendermanager->renderModel(OriginCutCircleActor);
 
     vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
