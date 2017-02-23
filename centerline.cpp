@@ -3722,6 +3722,7 @@ vtkSmartPointer<vtkIdList> Centerline::GetConnectedVertices(vtkSmartPointer<vtkP
 
         //cout << "End points are " << pointIdList->GetId(0) << " and " << pointIdList->GetId(1) << endl;
 
+        /*
         if(pointIdList->GetId(0) != id)
         {
             //cout << "Connected to " << pointIdList->GetId(0) << endl;
@@ -3732,6 +3733,15 @@ vtkSmartPointer<vtkIdList> Centerline::GetConnectedVertices(vtkSmartPointer<vtkP
             //cout << "Connected to " << pointIdList->GetId(1) << endl;
             connectedVertices->InsertNextId(pointIdList->GetId(1));
         }
+        */
+
+        for(vtkIdType j = 0; j < pointIdList->GetNumberOfIds(); j++)
+        {
+            if(pointIdList->GetId(j) != id)
+            {
+                connectedVertices->InsertNextId(pointIdList->GetId(j));
+            }
+        }
     }
 
     return connectedVertices;
@@ -3740,6 +3750,7 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
                                vtkDoubleArray *PlaneOriginals, vtkDoubleArray *PlaneNormals)
 {
     int count = 0;
+    int difference = 0, tolerance = 1;
     vtkSmartPointer<vtkIdList> currentlevel = vtkSmartPointer<vtkIdList>::New();
     // init
     currentlevel->InsertNextId(seed);
@@ -3770,6 +3781,7 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
                 double originleft[3], normalleft[3], vl[3];
                 double dotl, dotr;
                 vtkIdType id = connectedVertices->GetId(i);
+                difference = 0;
                 t_colon->GetPoint(id, p);
                 if(SectionIds->GetId(id) >= 0) // this point has already been assigned
                     continue; // do nothing for this point
@@ -3790,6 +3802,14 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
                     {
                         while(1){
                             left++; right ++;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
                             if(right > model->GetNumberOfPoints())
                             {
                                 std::cerr<<"failed to find section id (go right to the end)"<<endl;
@@ -3838,6 +3858,14 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
                     {
                         while(1){
                             left--; right--;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
                             if(left < -1)
                             {
                                 std::cerr<<"failed to find section id (go left to the end)"<<endl;
@@ -3891,6 +3919,14 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
                     {
                         while(1){
                             left--; right--;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
                             if(left < -1)
                             {
                                 std::cerr<<"failed to find section id (go left to the end)"<<endl;
@@ -3929,6 +3965,14 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
 
                         while(1){
                             left++; right ++;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
                             if(right > model->GetNumberOfPoints())
                             {
                                 std::cerr<<"failed to find section id (go right to the end)"<<endl;

@@ -66,3 +66,24 @@ void Colon::FillHoles(vtkSmartPointer<vtkPolyData> object)
     else
         object->DeepCopy(filter->GetOutput());
 }
+void Colon::RemoveUnconnectedBlobs(vtkSmartPointer<vtkPolyData> object)
+{
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    if(!object)
+        connectivityFilter->SetInputData(model);
+    else
+        connectivityFilter->SetInputData(object);
+    connectivityFilter->SetExtractionModeToLargestRegion();
+    connectivityFilter->Update();
+    if(!object)
+    {
+        model->DeepCopy(connectivityFilter->GetOutput());
+        std::cout<<"removed unconnected blobs, now have "<<model->GetNumberOfPoints()<<" points"<<endl;
+    }
+    else
+    {
+        object->DeepCopy(connectivityFilter->GetOutput());
+        std::cout<<"removed unconnected blobs, now have "<<object->GetNumberOfPoints()<<" points"<<endl;
+    }
+
+}
