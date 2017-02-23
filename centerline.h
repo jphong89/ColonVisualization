@@ -98,6 +98,13 @@ public:
                                                     vtkIdType left, vtkIdType right, vtkSmartPointer<vtkPolyData> lastpiece = NULL);
     vtkIdType GetTheSectionIdOfAPoint(vtkSmartPointer<vtkPolyData> t_colon, vtkIdType pointid,
                                       vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals, vtkSmartPointer<vtkIdList> CurvaturePointIds);
+    vtkIdType GetTheSectionIdOfAPoint_v2(vtkSmartPointer<vtkPolyData> t_colon, vtkIdType pointid,
+                                         vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals, vtkSmartPointer<vtkIdList> CurvaturePointIds);
+    void GetSectionIds(vtkPolyData* t_colon, vtkIdType pointid, vtkIdList* SectionIds,
+                       vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals);
+    void GetSectionIds_loop(vtkPolyData* t_colon, vtkIdType seed, vtkIdList* SectionIds,
+                       vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals);
+    vtkSmartPointer<vtkIdList> GetConnectedVertices(vtkSmartPointer<vtkPolyData> mesh, vtkIdType id);
 };
 
 #endif // CENTERLINE_H

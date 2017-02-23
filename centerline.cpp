@@ -1658,10 +1658,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     t_filemanager->SaveFile(reconstruction, "testpiece.stl");
     */
     return Deformation_v3(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    //for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
-    //{
-    //    std::cout<<i<<" belongs to "<<GetTheSectionIdOfAPoint(t_colon, i, PlaneOriginals, PlaneNormals)<<endl;
-    //}
+
 
     //return NULL;
 }
@@ -2662,12 +2659,48 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     points->SetNumberOfPoints(t_colon->GetNumberOfPoints());
     int count = 0;
 
+    /*
     vtkSmartPointer<vtkIdList> Sections = vtkSmartPointer<vtkIdList>::New();
     for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
     {
-        vtkIdType section = GetTheSectionIdOfAPoint(t_colon, i, PlaneOriginals, PlaneNormals, CurvaturePointIds);
+        vtkIdType section = GetTheSectionIdOfAPoint_v2(t_colon, i, PlaneOriginals, PlaneNormals, CurvaturePointIds);
         Sections->InsertNextId(section);
     }
+    */
+
+    double p[3], t[3], pp[3], pseed[3];
+    model->GetPoint(0, p);
+    Tangents->GetTuple(0, t);
+    vtkMath::MultiplyScalar(t, -50);
+    vtkMath::Add(p, t, pp);
+    vtkSmartPointer<vtkPointLocator> seedLocator = vtkSmartPointer<vtkPointLocator>::New();
+    seedLocator->SetDataSet(t_colon);
+    seedLocator->BuildLocator();
+    vtkIdType seed = seedLocator->FindClosestPoint(pp);
+    t_colon->GetPoint(seed, pseed);
+    vtkSmartPointer<vtkPoints> seedpoints = vtkSmartPointer<vtkPoints>::New();
+    seedpoints->InsertNextPoint(pseed);
+    vtkSmartPointer<vtkPolyData> seedpoly = vtkSmartPointer<vtkPolyData>::New();
+    seedpoly->SetPoints(seedpoints);
+    vtkSmartPointer<vtkVertexGlyphFilter> seedVertex = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    seedVertex->SetInputData(seedpoly);
+    seedVertex->Update();
+    vtkSmartPointer<vtkPolyDataMapper> seedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    seedMapper->SetInputConnection(seedVertex->GetOutputPort());
+    seedMapper->Update();
+    vtkSmartPointer<vtkActor> seedActor = vtkSmartPointer<vtkActor>::New();
+    seedActor->SetMapper(seedMapper);
+    seedActor->GetProperty()->SetPointSize(10);
+    seedActor->GetProperty()->SetColor(0,1,0);
+    t_rendermanager->renderModel(seedActor);
+
+    vtkSmartPointer<vtkIdList> Sections = vtkSmartPointer<vtkIdList>::New();
+    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        Sections->InsertNextId(-1);
+    }
+    Sections->SetId(seed, 0);
+    GetSectionIds_loop(t_colon, seed, Sections, PlaneOriginals, PlaneNormals);
 
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
     {
@@ -3334,4 +3367,612 @@ vtkIdType Centerline::GetTheSectionIdOfAPoint(vtkSmartPointer<vtkPolyData> t_col
         }
     }
     return output;
+}
+vtkIdType Centerline::GetTheSectionIdOfAPoint_v2(vtkSmartPointer<vtkPolyData> t_colon, vtkIdType pointid,
+                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals, vtkSmartPointer<vtkIdList> CurvaturePointIds)
+{
+    std::cout<<"Get the section id of "<<pointid<<endl;
+    double p[3], vl[3], vr[3], cpl[3], cpr[3], cp[3];
+    //double curvaturePointl[3], curvaturePointr[3];
+
+    t_colon->GetPoint(pointid, p);
+    double originright[3], normalright[3], originleft[3], normalleft[3];
+    double dis2, dis2Threshold = 10000;
+    vtkIdType output;
+    vtkIdType left, right;
+    double len, minLen = INFINITY;
+
+    vtkSmartPointer<vtkDijkstraGraphGeodesicPath> geodesicPath = vtkSmartPointer<vtkDijkstraGraphGeodesicPath>::New();
+    geodesicPath->SetInputData(t_colon);
+    geodesicPath->SetStartVertex(pointid);
+
+    for(vtkIdType i = 0; i <= model->GetNumberOfPoints(); i++)
+    {
+        left = i-1; right = i;
+        if(left < 0)
+        {
+            PlaneOriginals->GetTuple(right, originright);
+            PlaneNormals->GetTuple(right, normalright);
+            vtkMath::Subtract(p, originright, vr);
+            //std::cout<<i<<" "<<vtkMath::Dot(vr, normalright)<<endl;
+            if(vtkMath::Dot(vr, normalright) < 0)
+            {
+                model->GetPoint(right, cpr);
+                dis2 = vtkMath::Distance2BetweenPoints(p, cpr);
+                if(dis2 < dis2Threshold)
+                {
+
+                    geodesicPath->SetEndVertex(CurvaturePointIds->GetId(right));
+                    geodesicPath->Update();
+                    len = geodesicPath->GetOutput()->GetNumberOfPoints();
+                    if(len < minLen)
+                    {
+                        minLen = len;
+                        output = i;
+                    }
+                }
+            }
+        }
+        else if(right >= model->GetNumberOfPoints())
+        {
+            PlaneOriginals->GetTuple(left, originleft);
+            PlaneNormals->GetTuple(left, normalleft);
+            vtkMath::Subtract(p, originleft, vl);
+            //std::cout<<i<<" "<<vtkMath::Dot(vl, normalleft)<<endl;
+            if(vtkMath::Dot(vl, normalleft) >= 0)
+            {
+                model->GetPoint(left, cpl);
+                dis2 = vtkMath::Distance2BetweenPoints(p, cpl);
+                if(dis2 < dis2Threshold)
+                {
+                    geodesicPath->SetEndVertex(CurvaturePointIds->GetId(left));
+                    geodesicPath->Update();
+                    len = geodesicPath->GetOutput()->GetNumberOfPoints();
+                    if(len < minLen)
+                    {
+                        minLen = len;
+                        output = i;
+                    }
+                }
+            }
+        }
+        else
+        {
+            PlaneOriginals->GetTuple(right, originright);
+            PlaneNormals->GetTuple(right, normalright);
+            PlaneOriginals->GetTuple(left, originleft);
+            PlaneNormals->GetTuple(left, normalleft);
+            vtkMath::Subtract(p, originright, vr);
+            vtkMath::Subtract(p, originleft, vl);
+
+            //std::cout<<i<<" "<<vtkMath::Dot(vl, normalleft)<<" "<<vtkMath::Dot(vr, normalright)<<endl;
+            if(vtkMath::Dot(vl, normalleft) >= 0 && vtkMath::Dot(vr, normalright) < 0)
+            {
+                model->GetPoint(left, cpl);
+                model->GetPoint(right, cpr);
+                vtkMath::Add(cpl, cpr, cp);
+                vtkMath::MultiplyScalar(cp, 0.5);
+                dis2 = vtkMath::Distance2BetweenPoints(p, cp);
+                if(dis2 < dis2Threshold)
+                {
+                    geodesicPath->SetEndVertex(CurvaturePointIds->GetId(left));
+                    geodesicPath->Update();
+                    len = geodesicPath->GetOutput()->GetNumberOfPoints();
+                    if(len < minLen)
+                    {
+                        minLen = len;
+                        output = i;
+                    }
+                }
+            }
+        }
+    }
+    return output;
+}
+void Centerline::GetSectionIds(vtkPolyData *t_colon, vtkIdType pointid, vtkIdList *SectionIds,
+                               vtkDoubleArray *PlaneOriginals, vtkDoubleArray *PlaneNormals)
+{
+
+
+    vtkSmartPointer<vtkIdList> connectedVertices = vtkSmartPointer<vtkIdList>::New();
+    connectedVertices = GetConnectedVertices(t_colon, pointid);
+    vtkIdType currentSectionId = SectionIds->GetId(pointid);
+
+    std::cout<<"seed : "<<pointid<<"(current section "<<currentSectionId<<") "<<connectedVertices->GetNumberOfIds()<<": ";
+    for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
+    {
+        std::cout<<connectedVertices->GetId(i)<<" ";
+    }
+    std::cout<<endl;
+
+    for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
+    {
+        double p[3];
+        double originright[3], normalright[3], vr[3];
+        double originleft[3], normalleft[3], vl[3];
+        double dotl, dotr;
+        vtkIdType id = connectedVertices->GetId(i);
+        t_colon->GetPoint(id, p);
+        if(SectionIds->GetId(id) >= 0) // this point has already been assigned
+            continue; // do nothing for this point
+        vtkIdType left = currentSectionId-1, right = currentSectionId;
+        if(left < 0) // id is at the left end
+        {
+            PlaneOriginals->GetTuple(right, originright);
+            PlaneNormals->GetTuple(right, normalright);
+            vtkMath::Subtract(p, originright, vr);
+            if(vtkMath::Dot(vr, normalright) <= 0) // id satisfy the section criteron
+            {
+                SectionIds->SetId(id, right);
+            }
+            // else go right
+            else
+            {
+                while(1){
+                    left++; right ++;
+                    if(right > model->GetNumberOfPoints())
+                    {
+                        std::cerr<<"failed to find section id (go right to the end)"<<endl;
+                        exit(1);
+                    }
+                    PlaneOriginals->GetTuple(left, originleft);
+                    PlaneNormals->GetTuple(left, normalleft);
+                    vtkMath::Subtract(p, originleft, vl);
+                    dotl = vtkMath::Dot(vl, normalleft);
+                    if(right == model->GetNumberOfPoints())
+                    {
+                        if(dotl > 0)
+                        {
+                            SectionIds->SetId(id, right);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        PlaneOriginals->GetTuple(right, originright);
+                        PlaneNormals->GetTuple(right, normalright);
+                        vtkMath::Subtract(p, originright, vr);
+                        dotr = vtkMath::Dot(vr, normalright);
+                        {
+                            if(dotl > 0 && dotr <=0)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+                        }
+                    }
+                } // end of go right
+            }
+        }
+        else if(right >= model->GetNumberOfPoints()) // id is at the right end
+        {
+            PlaneOriginals->GetTuple(left, originleft);
+            PlaneNormals->GetTuple(left, normalleft);
+            vtkMath::Subtract(p, originleft, vl);
+            if(vtkMath::Dot(vl, normalleft) > 0) // id satisfy the section criteron
+            {
+                SectionIds->SetId(id, right);
+            }
+            // else go left
+            else
+            {
+                while(1){
+                    left--; right--;
+                    if(left < -1)
+                    {
+                        std::cerr<<"failed to find section id (go left to the end)"<<endl;
+                        exit(1);
+                    }
+                    PlaneOriginals->GetTuple(right, originright);
+                    PlaneNormals->GetTuple(right, normalright);
+                    vtkMath::Subtract(p, originright, vr);
+                    dotr = vtkMath::Dot(vr, normalright);
+                    if(left == -1)
+                    {
+                        if(dotr <= 0)
+                        {
+                            SectionIds->SetId(id, right);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        PlaneOriginals->GetTuple(left, originleft);
+                        PlaneNormals->GetTuple(left, normalleft);
+                        vtkMath::Subtract(p, originleft, vl);
+                        dotl = vtkMath::Dot(vl, normalleft);
+                        {
+                            if(dotl > 0 && dotr <=0)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+                        }
+                    }
+                } // end of go left
+            }
+        }
+        else // id is in the middle
+        {
+            PlaneOriginals->GetTuple(right, originright);
+            PlaneNormals->GetTuple(right, normalright);
+            vtkMath::Subtract(p, originright, vr);
+            PlaneOriginals->GetTuple(left, originleft);
+            PlaneNormals->GetTuple(left, normalleft);
+            vtkMath::Subtract(p, originleft, vl);
+            dotr = vtkMath::Dot(vr, normalright);
+            dotl = vtkMath::Dot(vl, normalleft);
+            //std::cout<<"dotr: "<<dotr<<" dotl: "<<dotl<<std::endl;
+            if(dotr <= 0 && dotl > 0) // satisfy
+            {
+                SectionIds->SetId(id, right);
+            }
+            else if(dotr <= 0 && dotl <= 0) // should go left(the point is on the left side of the current section)
+            {
+                while(1){
+                    left--; right--;
+                    if(left < -1)
+                    {
+                        std::cerr<<"failed to find section id (go left to the end)"<<endl;
+                        exit(1);
+                    }
+                    PlaneOriginals->GetTuple(right, originright);
+                    PlaneNormals->GetTuple(right, normalright);
+                    vtkMath::Subtract(p, originright, vr);
+                    dotr = vtkMath::Dot(vr, normalright);
+                    if(left == -1)
+                    {
+                        if(dotr <= 0)
+                        {
+                            SectionIds->SetId(id, right);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        PlaneOriginals->GetTuple(left, originleft);
+                        PlaneNormals->GetTuple(left, normalleft);
+                        vtkMath::Subtract(p, originleft, vl);
+                        dotl = vtkMath::Dot(vl, normalleft);
+                        {
+                            if(dotl > 0 && dotr <=0)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+                        }
+                    }
+                } // end of go left
+            }
+            else if(dotr >0 && dotl > 0) // should go right(the point is on the right side of the current section)
+            {
+
+                while(1){
+                    left++; right ++;
+                    if(right > model->GetNumberOfPoints())
+                    {
+                        std::cerr<<"failed to find section id (go right to the end)"<<endl;
+                        exit(1);
+                    }
+                    PlaneOriginals->GetTuple(left, originleft);
+                    PlaneNormals->GetTuple(left, normalleft);
+                    vtkMath::Subtract(p, originleft, vl);
+                    dotl = vtkMath::Dot(vl, normalleft);
+                    if(right == model->GetNumberOfPoints())
+                    {
+                        if(dotl > 0)
+                        {
+                            SectionIds->SetId(id, right);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        PlaneOriginals->GetTuple(right, originright);
+                        PlaneNormals->GetTuple(right, normalright);
+                        vtkMath::Subtract(p, originright, vr);
+                        dotr = vtkMath::Dot(vr, normalright);
+                        {
+                            if(dotl > 0 && dotr <=0)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+                        }
+                    }
+                } // end of go right
+            }
+            else
+            {
+                std::cerr<<"failed to find section id (unreasonalbe dotl and dotr)"<<endl;
+                exit(0);
+            }
+        }
+        // after processing the id-th point, should process its neighbours
+        std::cout<<"set "<<id<<" to "<<right<<endl;
+        GetSectionIds(t_colon, id, SectionIds, PlaneOriginals, PlaneNormals);
+    }
+}
+vtkSmartPointer<vtkIdList> Centerline::GetConnectedVertices(vtkSmartPointer<vtkPolyData> mesh, vtkIdType id)
+{
+    vtkSmartPointer<vtkIdList> connectedVertices =
+            vtkSmartPointer<vtkIdList>::New();
+
+    //get all cells that vertex 'id' is a part of
+    vtkSmartPointer<vtkIdList> cellIdList =
+            vtkSmartPointer<vtkIdList>::New();
+    mesh->GetPointCells(id, cellIdList);
+
+    /*
+      cout << "Vertex 0 is used in cells ";
+      for(vtkIdType i = 0; i < cellIdList->GetNumberOfIds(); i++)
+        {
+        cout << cellIdList->GetId(i) << ", ";
+        }
+      cout << endl;
+      */
+
+    for(vtkIdType i = 0; i < cellIdList->GetNumberOfIds(); i++)
+    {
+        //cout << "id " << i << " : " << cellIdList->GetId(i) << endl;
+
+        vtkSmartPointer<vtkIdList> pointIdList =
+                vtkSmartPointer<vtkIdList>::New();
+        mesh->GetCellPoints(cellIdList->GetId(i), pointIdList);
+
+        //cout << "End points are " << pointIdList->GetId(0) << " and " << pointIdList->GetId(1) << endl;
+
+        if(pointIdList->GetId(0) != id)
+        {
+            //cout << "Connected to " << pointIdList->GetId(0) << endl;
+            connectedVertices->InsertNextId(pointIdList->GetId(0));
+        }
+        else
+        {
+            //cout << "Connected to " << pointIdList->GetId(1) << endl;
+            connectedVertices->InsertNextId(pointIdList->GetId(1));
+        }
+    }
+
+    return connectedVertices;
+}
+void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdList *SectionIds,
+                               vtkDoubleArray *PlaneOriginals, vtkDoubleArray *PlaneNormals)
+{
+    int count = 0;
+    vtkSmartPointer<vtkIdList> currentlevel = vtkSmartPointer<vtkIdList>::New();
+    // init
+    currentlevel->InsertNextId(seed);
+
+    while(currentlevel->GetNumberOfIds() > 0)
+    {
+        count += currentlevel->GetNumberOfIds();
+        std::cout<<"processed "<<count<<" points"<<endl;
+        vtkSmartPointer<vtkIdList> nextlevel = vtkSmartPointer<vtkIdList>::New();
+        for(vtkIdType n = 0; n < currentlevel->GetNumberOfIds(); n++)
+        {
+            vtkIdType pointid = currentlevel->GetId(n);
+            vtkSmartPointer<vtkIdList> connectedVertices = vtkSmartPointer<vtkIdList>::New();
+            connectedVertices = GetConnectedVertices(t_colon, pointid);
+            vtkIdType currentSectionId = SectionIds->GetId(pointid);
+
+            std::cout<<"pointid : "<<pointid<<"(current section "<<currentSectionId<<") "<<connectedVertices->GetNumberOfIds()<<": ";
+            for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
+            {
+                std::cout<<connectedVertices->GetId(i)<<" ";
+            }
+            std::cout<<endl;
+
+            for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
+            {
+                double p[3];
+                double originright[3], normalright[3], vr[3];
+                double originleft[3], normalleft[3], vl[3];
+                double dotl, dotr;
+                vtkIdType id = connectedVertices->GetId(i);
+                t_colon->GetPoint(id, p);
+                if(SectionIds->GetId(id) >= 0) // this point has already been assigned
+                    continue; // do nothing for this point
+                else
+                    nextlevel->InsertNextId(id);
+                vtkIdType left = currentSectionId-1, right = currentSectionId;
+                if(left < 0) // id is at the left end
+                {
+                    PlaneOriginals->GetTuple(right, originright);
+                    PlaneNormals->GetTuple(right, normalright);
+                    vtkMath::Subtract(p, originright, vr);
+                    if(vtkMath::Dot(vr, normalright) <= 0) // id satisfy the section criteron
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    // else go right
+                    else
+                    {
+                        while(1){
+                            left++; right ++;
+                            if(right > model->GetNumberOfPoints())
+                            {
+                                std::cerr<<"failed to find section id (go right to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(left, originleft);
+                            PlaneNormals->GetTuple(left, normalleft);
+                            vtkMath::Subtract(p, originleft, vl);
+                            dotl = vtkMath::Dot(vl, normalleft);
+                            if(right == model->GetNumberOfPoints())
+                            {
+                                if(dotl > 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(right, originright);
+                                PlaneNormals->GetTuple(right, normalright);
+                                vtkMath::Subtract(p, originright, vr);
+                                dotr = vtkMath::Dot(vr, normalright);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go right
+                    }
+                }
+                else if(right >= model->GetNumberOfPoints()) // id is at the right end
+                {
+                    PlaneOriginals->GetTuple(left, originleft);
+                    PlaneNormals->GetTuple(left, normalleft);
+                    vtkMath::Subtract(p, originleft, vl);
+                    if(vtkMath::Dot(vl, normalleft) > 0) // id satisfy the section criteron
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    // else go left
+                    else
+                    {
+                        while(1){
+                            left--; right--;
+                            if(left < -1)
+                            {
+                                std::cerr<<"failed to find section id (go left to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(right, originright);
+                            PlaneNormals->GetTuple(right, normalright);
+                            vtkMath::Subtract(p, originright, vr);
+                            dotr = vtkMath::Dot(vr, normalright);
+                            if(left == -1)
+                            {
+                                if(dotr <= 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(left, originleft);
+                                PlaneNormals->GetTuple(left, normalleft);
+                                vtkMath::Subtract(p, originleft, vl);
+                                dotl = vtkMath::Dot(vl, normalleft);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go left
+                    }
+                }
+                else // id is in the middle
+                {
+                    PlaneOriginals->GetTuple(right, originright);
+                    PlaneNormals->GetTuple(right, normalright);
+                    vtkMath::Subtract(p, originright, vr);
+                    PlaneOriginals->GetTuple(left, originleft);
+                    PlaneNormals->GetTuple(left, normalleft);
+                    vtkMath::Subtract(p, originleft, vl);
+                    dotr = vtkMath::Dot(vr, normalright);
+                    dotl = vtkMath::Dot(vl, normalleft);
+                    //std::cout<<"dotr: "<<dotr<<" dotl: "<<dotl<<std::endl;
+                    if(dotr <= 0 && dotl > 0) // satisfy
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    else if(dotr <= 0 && dotl <= 0) // should go left(the point is on the left side of the current section)
+                    {
+                        while(1){
+                            left--; right--;
+                            if(left < -1)
+                            {
+                                std::cerr<<"failed to find section id (go left to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(right, originright);
+                            PlaneNormals->GetTuple(right, normalright);
+                            vtkMath::Subtract(p, originright, vr);
+                            dotr = vtkMath::Dot(vr, normalright);
+                            if(left == -1)
+                            {
+                                if(dotr <= 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(left, originleft);
+                                PlaneNormals->GetTuple(left, normalleft);
+                                vtkMath::Subtract(p, originleft, vl);
+                                dotl = vtkMath::Dot(vl, normalleft);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go left
+                    }
+                    else if(dotr >0 && dotl > 0) // should go right(the point is on the right side of the current section)
+                    {
+
+                        while(1){
+                            left++; right ++;
+                            if(right > model->GetNumberOfPoints())
+                            {
+                                std::cerr<<"failed to find section id (go right to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(left, originleft);
+                            PlaneNormals->GetTuple(left, normalleft);
+                            vtkMath::Subtract(p, originleft, vl);
+                            dotl = vtkMath::Dot(vl, normalleft);
+                            if(right == model->GetNumberOfPoints())
+                            {
+                                if(dotl > 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(right, originright);
+                                PlaneNormals->GetTuple(right, normalright);
+                                vtkMath::Subtract(p, originright, vr);
+                                dotr = vtkMath::Dot(vr, normalright);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go right
+                    }
+                    else
+                    {
+                        std::cerr<<"failed to find section id (unreasonalbe dotl and dotr)"<<endl;
+                        exit(0);
+                    }
+                }
+                // after processing the id-th point, should process its neighbours
+                std::cout<<"set "<<id<<" to "<<right<<endl;
+            }
+        } // for(vtkIdType n = 0; n < nextlevel->GetNumberOfIds(); n++)
+        currentlevel->Reset();
+        currentlevel->DeepCopy(nextlevel);
+    } // while(1)
 }
