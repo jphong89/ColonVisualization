@@ -1264,6 +1264,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
         vtkSmartPointer<vtkDoubleArray> Radius = vtkSmartPointer<vtkDoubleArray>::New();
 
+
+        vtkPolyDataGroup group;
         // calculate the cut circles and curvature points
         if(parallel)
         {
@@ -1533,9 +1535,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     newconnectivityFilter->SetInputConnection(newcutter->GetOutputPort());
     newconnectivityFilter->SetExtractionModeToClosestPointRegion();
 
-    vtkSmartPointer<vtkPolyData> NewCutlines = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkAppendPolyData> newappendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
-    vtkSmartPointer<vtkCleanPolyData> newcleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+    //vtkSmartPointer<vtkPolyData> NewCutlines = vtkSmartPointer<vtkPolyData>::New();
+    //vtkSmartPointer<vtkAppendPolyData> newappendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    //vtkSmartPointer<vtkCleanPolyData> newcleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
 
     for(vtkIdType i = 0; i < ViolationHead->GetNumberOfIds(); i++)
     {
@@ -1640,30 +1642,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         RefDirections->InsertNextTuple(projection);
     }
 
-    /*
-    vtkSmartPointer<vtkPolyData> reconstruction = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> piece = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> lastpiece = vtkSmartPointer<vtkPolyData>::New();
-    for(vtkIdType i = 0; i <= model->GetNumberOfPoints(); i++)
-    {
-        vtkIdType left = i-1;
-        vtkIdType right = i;
-        piece = PieceBetweenPlanes(t_colon, PlaneOriginals, PlaneNormals, left, right, lastpiece);
-        appendFilter->RemoveAllInputs();
-        appendFilter->AddInputData(piece);
-        appendFilter->AddInputData(reconstruction);
-        appendFilter->Update();
-        cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
-        cleanFilter->Update();
-        reconstruction->DeepCopy(cleanFilter->GetOutput());
-        std::cout<<i-1<<"->"<<i<<" "<<piece->GetNumberOfPoints()<<endl;
-        lastpiece->DeepCopy(piece);
-    }
-    t_filemanager->SaveFile(reconstruction, "testpiece.stl");
-    */
-    return Deformation_v3(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-
-
+    // entrance to deformation versions
+    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return NULL;
 }
 
@@ -1693,7 +1673,7 @@ vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyD
 {
     int * Ids = (int *)malloc(cutCircle->GetNumberOfPoints()*sizeof(int));
 
-    std::cout<<"c,p: "<<cutCircle->GetNumberOfCells()<<" "<<cutCircle->GetNumberOfPoints()<<endl;
+    //std::cout<<"c,p: "<<cutCircle->GetNumberOfCells()<<" "<<cutCircle->GetNumberOfPoints()<<endl;
     for(vtkIdType i=0; i<cutCircle->GetNumberOfPoints(); i++)
     {
         Ids[i] = -1;
@@ -1736,7 +1716,7 @@ vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyD
             }
         }
         Ids[head] = tail;
-        std::cout<<"connected "<<head<<" to "<<tail<<endl;
+        //std::cout<<"connected "<<head<<" to "<<tail<<endl;
         free(connected);
     }
 
@@ -1768,7 +1748,7 @@ vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyD
     ReorderedCircle->SetPoints(points);
     ReorderedCircle->SetLines(lines);
 
-    std::cout<<cutCircle->GetNumberOfPoints()<<"->"<<ReorderedCircle->GetNumberOfPoints()<<endl;
+    //std::cout<<cutCircle->GetNumberOfPoints()<<"->"<<ReorderedCircle->GetNumberOfPoints()<<endl;
     free(Ids);
     return ReorderedCircle;
 }
@@ -2907,6 +2887,352 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
     std::cout<<"Deformation End"<<endl;
     return SurfaceLineUp;
 }
+vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
+                                                     vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                                     vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                                     vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                                     vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager *t_filemanager)
+{
+    //PutNormalsOnSameSide(Normals, Curvatures);
+    std::cout<<"Deformation"<<endl;
+    bool straight = true;
+    // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
+    double point[3], nextpoint[3];
+    double tangent[3], nexttangent[3];
+    double normal[3], nextnormal[3];
+    double binormal[3];
+    double ds, curvature;
+    vtkSmartPointer<vtkDoubleArray> NewTangents = vtkSmartPointer<vtkDoubleArray>::New();
+    NewTangents->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkDoubleArray> NewNormals = vtkSmartPointer<vtkDoubleArray>::New();
+    NewNormals->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkDoubleArray> NewBinormals = vtkSmartPointer<vtkDoubleArray>::New();
+    NewBinormals->SetNumberOfComponents(3);
+    vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+    for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
+    {
+        if(i == 0)
+        {
+            model->GetPoint(0, point);
+            point[0] = point[0] + 60;
+            binormal[0] = 0;
+            binormal[1] = 0;
+            binormal[2] = 1;
+            tangent[0] = 1;
+            tangent[1] = 0;
+            tangent[2] = 0;
+            normal[0] = 0;
+            normal[1] = 1;
+            normal[2] = 0;
+        }
+        ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+        curvature = Curvatures->GetValue(i);
+
+        // Record the New Axis System
+        NewTangents->InsertNextTuple(tangent);
+        NewNormals->InsertNextTuple(normal);
+        NewBinormals->InsertNextTuple(binormal);
+
+        double dnormal[3];
+        if(straight)
+        {
+            dnormal[0] = 0; dnormal[1] = 0; dnormal[2] = 0;
+        }
+        else
+        {
+            dnormal[0] = tangent[0]; dnormal[1] = tangent[1]; dnormal[2] = tangent[2];
+            double RelaxationFactor = 2;
+            vtkMath::MultiplyScalar(dnormal, -curvature / RelaxationFactor);
+        }
+        vtkMath::Add(normal, dnormal, nextnormal);
+        vtkMath::Normalize(nextnormal);
+        //std::cout<<i<<"\ts="<<S->GetValue(i)<<"("<<ds<<")"<<"\tk="<<curvature<<endl;
+        vtkMath::Cross(nextnormal, binormal, nexttangent);
+        vtkMath::Normalize(nexttangent);
+        vtkMath::MultiplyScalar(tangent, ds);
+        vtkMath::Add(point, tangent, nextpoint);
+        newpoints->InsertNextPoint(point);
+
+        point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        normal[0] = nextnormal[0]; normal[1] = nextnormal[1]; normal[2] = nextnormal[2];
+        tangent[0] = nexttangent[0]; tangent[1] = nexttangent[1]; tangent[2] = nexttangent[2];
+    }
+
+    vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
+    newcenterline->SetPoints(newpoints);
+    vtkSmartPointer<vtkVertexGlyphFilter> newVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    newVertexFilter->SetInputData(newcenterline);
+    newVertexFilter->Update();
+    vtkSmartPointer<vtkPolyDataMapper> newMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
+    vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
+    newActor->SetMapper(newMapper);
+    t_rendermanager->renderModel(newActor);
+
+    // Line Up the Cross Sections
+    vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
+    cutter->SetInputData(t_colon);
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    connectivityFilter->SetInputConnection(cutter->GetOutputPort());
+    connectivityFilter->SetExtractionModeToClosestPointRegion();
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> OriginCutCircle = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> CutCircleLineUp = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> lastCircle = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkPolyData> SurfaceLineUp = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPointLocator> pointLocator = vtkSmartPointer<vtkPointLocator>::New();
+    pointLocator->SetDataSet(t_colon);
+    pointLocator->BuildLocator();
+
+    vtkPolyDataGroup* CircleGroup = new vtkPolyDataGroup;
+    vtkPolyDataGroup* ResampledCircleGroup = new vtkPolyDataGroup;
+    vtkPolyDataGroup* ResampledLineUpGroup = new vtkPolyDataGroup;
+
+    for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
+    {
+        double newp[3], oldp[3];
+        newcenterline->GetPoint(i, newp);
+        model->GetPoint(i, oldp);
+        double told[3], nold[3], bold[3];
+        Tangents->GetTuple(i, told);
+
+        //Normals->GetTuple(i, nold);
+        RefDirections->GetTuple(i, nold);
+
+        vtkMath::Cross(told, nold, bold);
+
+        plane->SetOrigin(PlaneOriginals->GetTuple(i));
+        plane->SetNormal(PlaneNormals->GetTuple(i));
+        cutter->SetCutFunction(plane);
+        cutter->Update();
+
+        connectivityFilter->SetClosestPoint(oldp);
+        connectivityFilter->SetInputData(cutter->GetOutput());
+        connectivityFilter->Update();
+
+        vtkSmartPointer<vtkPolyData> cutCircle = vtkSmartPointer<vtkPolyData>::New();
+        cutCircle = connectivityFilter->GetOutput();
+        if(i != 0)
+        {
+            for(vtkIdType j = 0; j<lastCircle->GetNumberOfPoints(); j++)
+            {
+
+                if(cutCircle->GetNumberOfPoints() >= 100)
+                    break;
+                connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
+                connectivityFilter->Update();
+                cutCircle = connectivityFilter->GetOutput();
+            }
+        }
+        lastCircle->DeepCopy(cutCircle);
+
+        CircleGroup->AddMember(cutCircle);// record the cutCircle into group
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->AddInputData(OriginCutCircle);
+        appendFilter->Update();
+        OriginCutCircle->DeepCopy(appendFilter->GetOutput());
+
+        cutCircle->DeepCopy(ReorderContour(cutCircle));
+        UniformSample(40, cutCircle);
+        ResampledCircleGroup->AddMember(cutCircle);
+
+        vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
+        for(vtkIdType j=0; j<cutCircle->GetNumberOfPoints(); j++)
+        {
+            double p[3];
+            cutCircle->GetPoint(j, p);
+            double vector[3];
+            vtkMath::Subtract(p, oldp, vector);
+            double coordinate[3];
+            coordinate[0] = vtkMath::Dot(vector, told);
+            coordinate[1] = vtkMath::Dot(vector, nold);
+            coordinate[2] = vtkMath::Dot(vector, bold);
+            double pp[3];
+            double vx[3], vy[3], vz[3], tmp1[3], tmp2[3];
+            NewTangents->GetTuple(i, vx);
+            NewNormals->GetTuple(i, vy);
+            NewBinormals->GetTuple(i, vz);
+            vtkMath::MultiplyScalar(vx, coordinate[0]);
+            vtkMath::MultiplyScalar(vy, coordinate[1]);
+            vtkMath::MultiplyScalar(vz, coordinate[2]);
+            vtkMath::Add(newp, vx, tmp1);
+            vtkMath::Add(tmp1, vy, tmp2);
+            vtkMath::Add(tmp2, vz, pp);
+            newCutCircle->InsertNextPoint(pp);
+        }
+        cutCircle->SetPoints(newCutCircle);
+
+        ResampledLineUpGroup->AddMember(cutCircle);
+
+        appendFilter->RemoveAllInputs();
+        appendFilter->AddInputData(CutCircleLineUp);
+        appendFilter->AddInputData(cutCircle);
+        appendFilter->Update();
+        CutCircleLineUp->DeepCopy(appendFilter->GetOutput());
+
+    }
+
+    vtkSmartPointer<vtkPolyDataMapper> OriginCutCircleMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    OriginCutCircleMapper->SetInputData(OriginCutCircle);
+    OriginCutCircleMapper->Update();
+    vtkSmartPointer<vtkActor> OriginCutCircleActor = vtkSmartPointer<vtkActor>::New();
+    OriginCutCircleActor->SetMapper(OriginCutCircleMapper);
+    OriginCutCircleActor->GetProperty()->SetColor(0, 0, 1);
+    t_rendermanager->renderModel(OriginCutCircleActor);
+
+    vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
+    CutCircleLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
+    CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
+    CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
+    t_rendermanager->renderModel(CutCircleLineUpActor);
+
+    // deformation of surface begin
+    // place the seed
+    double p[3], t[3], pp[3], pseed[3];
+    model->GetPoint(0, p);
+    Tangents->GetTuple(0, t);
+    vtkMath::MultiplyScalar(t, -50);
+    vtkMath::Add(p, t, pp);
+    vtkSmartPointer<vtkPointLocator> seedLocator = vtkSmartPointer<vtkPointLocator>::New();
+    seedLocator->SetDataSet(t_colon);
+    seedLocator->BuildLocator();
+    vtkIdType seed = seedLocator->FindClosestPoint(pp);
+    t_colon->GetPoint(seed, pseed);
+    vtkSmartPointer<vtkPoints> seedpoints = vtkSmartPointer<vtkPoints>::New();
+    seedpoints->InsertNextPoint(pseed);
+    vtkSmartPointer<vtkPolyData> seedpoly = vtkSmartPointer<vtkPolyData>::New();
+    seedpoly->SetPoints(seedpoints);
+    vtkSmartPointer<vtkVertexGlyphFilter> seedVertex = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    seedVertex->SetInputData(seedpoly);
+    seedVertex->Update();
+    vtkSmartPointer<vtkPolyDataMapper> seedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    seedMapper->SetInputConnection(seedVertex->GetOutputPort());
+    seedMapper->Update();
+    vtkSmartPointer<vtkActor> seedActor = vtkSmartPointer<vtkActor>::New();
+    seedActor->SetMapper(seedMapper);
+    seedActor->GetProperty()->SetPointSize(10);
+    seedActor->GetProperty()->SetColor(0,1,0);
+    t_rendermanager->renderModel(seedActor); // place the seed
+
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    points->SetNumberOfPoints(t_colon->GetNumberOfPoints());
+
+    for(int i = 0; i < CircleGroup->GetNumOfMembers(); i++)
+    {
+        std::cout<<"circle "<<i<<" has "<<CircleGroup->GetMember(i)->GetNumberOfPoints()<<
+                   "(resampled to "<<ResampledCircleGroup->GetMember(i)->GetNumberOfPoints()<<")"<<endl;
+    }
+
+    vtkSmartPointer<vtkIdList> Sections = vtkSmartPointer<vtkIdList>::New();
+    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        Sections->InsertNextId(-1);
+    }
+    Sections->SetId(seed, 0);
+    GetSectionIds_loop(t_colon, seed, Sections, PlaneOriginals, PlaneNormals);
+
+    vtkSmartPointer<vtkPolyData> source = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> target = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> s1 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> s2 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> t1 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> t2 = vtkSmartPointer<vtkPolyData>::New();
+    for(int i = 0; i <= model->GetNumberOfPoints(); i++)
+    {
+        if(i == 0)
+        {
+            source->DeepCopy(ResampledCircleGroup->GetMember(i));
+            target->DeepCopy(ResampledLineUpGroup->GetMember(i));
+
+        }
+        else if(i == model->GetNumberOfPoints())
+        {
+            source->DeepCopy(ResampledCircleGroup->GetMember(i-1));
+            target->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
+        }
+        else
+        {
+            s2->DeepCopy(ResampledCircleGroup->GetMember(i));
+            t2->DeepCopy(ResampledLineUpGroup->GetMember(i));
+            s1->DeepCopy(ResampledCircleGroup->GetMember(i-1));
+            t1->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
+
+            double cs[3], ct[3];
+            s2->GetCenter(cs); s1->GetCenter(ct);
+            std::cout<<cs[0]<<" "<<cs[1]<<" "<<cs[3]<<"  "<<ct[0]<<" "<<ct[1]<<" "<<ct[2]<<endl;
+
+            appendFilter->RemoveAllInputs();
+            appendFilter->AddInputData(s1);
+            appendFilter->AddInputData(s2);
+            appendFilter->Update();
+            source->DeepCopy(appendFilter->GetOutput());
+            appendFilter->RemoveAllInputs();
+            appendFilter->AddInputData(t1);
+            appendFilter->AddInputData(t2);
+            appendFilter->Update();
+            target->DeepCopy(appendFilter->GetOutput());
+        }
+        vtkSmartPointer<vtkPoints> sectionpoints = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkPolyData> sectionpoly = vtkSmartPointer<vtkPolyData>::New();
+        vtkSmartPointer<vtkIdList> sectionids = vtkSmartPointer<vtkIdList>::New();
+        for(vtkIdType j =0; j < t_colon->GetNumberOfPoints(); j++)
+        {
+            vtkIdType section = Sections->GetId(j);
+            if(section == i)
+            {
+                double p[3];
+                t_colon->GetPoint(j, p);
+                sectionids->InsertNextId(j);
+                sectionpoints->InsertNextPoint(p);
+            }
+        }
+        sectionpoly->SetPoints(sectionpoints);
+        vtkSmartPointer<vtkThinPlateSplineTransform> transform = vtkSmartPointer<vtkThinPlateSplineTransform>::New();
+        transform->SetSourceLandmarks(source->GetPoints());
+        transform->SetTargetLandmarks(target->GetPoints());
+        transform->SetBasisToR();
+        transform->Update();
+        vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+        transformFilter->RemoveAllInputs();
+        transformFilter->SetInputData(sectionpoly);
+        transformFilter->SetTransform(transform);
+        transformFilter->Update();
+        sectionpoly->DeepCopy(transformFilter->GetOutput());
+
+
+        for(vtkIdType j = 0; j < sectionpoly->GetNumberOfPoints(); j++)
+        {
+            double p[3];
+            sectionpoly->GetPoint(j, p);
+            points->SetPoint(sectionids->GetId(j), p);
+        }
+
+        std::cout<<"section "<<i<<" "<<sectionpoly->GetNumberOfPoints()<<endl;
+    }
+    SurfaceLineUp->DeepCopy(t_colon);
+    SurfaceLineUp->SetPoints(points);
+
+    vtkSmartPointer<vtkPolyDataMapper> SurfaceLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    SurfaceLineUpMapper->SetInputData(SurfaceLineUp);
+    SurfaceLineUpMapper->Update();
+    vtkSmartPointer<vtkActor> SurfaceLineUpActor = vtkSmartPointer<vtkActor>::New();
+    SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
+    t_rendermanager->renderModel(SurfaceLineUpActor);
+    t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v3_1.stl");
+
+    delete CircleGroup;
+    delete ResampledCircleGroup;
+    delete ResampledLineUpGroup;
+    std::cout<<"Deformation End"<<endl;
+    return SurfaceLineUp;
+}
 vtkSmartPointer<vtkPolyData> Centerline::Deformation_v4(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                                      vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                                      vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
@@ -3770,6 +4096,280 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
 {
     int count = 0;
     int difference = 0, tolerance = 1;
+    vtkSmartPointer<vtkIdList> currentlevel = vtkSmartPointer<vtkIdList>::New();
+    // init
+    currentlevel->InsertNextId(seed);
+
+    while(currentlevel->GetNumberOfIds() > 0)
+    {
+        count += currentlevel->GetNumberOfIds();
+        std::cout<<"processed "<<count<<" points"<<endl;
+        vtkSmartPointer<vtkIdList> nextlevel = vtkSmartPointer<vtkIdList>::New();
+        for(vtkIdType n = 0; n < currentlevel->GetNumberOfIds(); n++)
+        {
+            vtkIdType pointid = currentlevel->GetId(n);
+            vtkSmartPointer<vtkIdList> connectedVertices = vtkSmartPointer<vtkIdList>::New();
+            connectedVertices = GetConnectedVertices(t_colon, pointid);
+            vtkIdType currentSectionId = SectionIds->GetId(pointid);
+
+            std::cout<<"pointid : "<<pointid<<"(current section "<<currentSectionId<<") "<<connectedVertices->GetNumberOfIds()<<": ";
+            for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
+            {
+                std::cout<<connectedVertices->GetId(i)<<" ";
+            }
+            std::cout<<endl;
+
+            for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
+            {
+                double p[3];
+                double originright[3], normalright[3], vr[3];
+                double originleft[3], normalleft[3], vl[3];
+                double dotl, dotr;
+                vtkIdType id = connectedVertices->GetId(i);
+                difference = 0;
+                t_colon->GetPoint(id, p);
+                if(SectionIds->GetId(id) >= 0) // this point has already been assigned
+                    continue; // do nothing for this point
+                else
+                    nextlevel->InsertNextId(id);
+                vtkIdType left = currentSectionId-1, right = currentSectionId;
+                if(left < 0) // id is at the left end
+                {
+                    PlaneOriginals->GetTuple(right, originright);
+                    PlaneNormals->GetTuple(right, normalright);
+                    vtkMath::Subtract(p, originright, vr);
+                    if(vtkMath::Dot(vr, normalright) <= 0) // id satisfy the section criteron
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    // else go right
+                    else
+                    {
+                        while(1){
+                            left++; right ++;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
+                            if(right > model->GetNumberOfPoints())
+                            {
+                                std::cerr<<"failed to find section id (go right to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(left, originleft);
+                            PlaneNormals->GetTuple(left, normalleft);
+                            vtkMath::Subtract(p, originleft, vl);
+                            dotl = vtkMath::Dot(vl, normalleft);
+                            if(right == model->GetNumberOfPoints())
+                            {
+                                if(dotl > 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(right, originright);
+                                PlaneNormals->GetTuple(right, normalright);
+                                vtkMath::Subtract(p, originright, vr);
+                                dotr = vtkMath::Dot(vr, normalright);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go right
+                    }
+                }
+                else if(right >= model->GetNumberOfPoints()) // id is at the right end
+                {
+                    PlaneOriginals->GetTuple(left, originleft);
+                    PlaneNormals->GetTuple(left, normalleft);
+                    vtkMath::Subtract(p, originleft, vl);
+                    if(vtkMath::Dot(vl, normalleft) > 0) // id satisfy the section criteron
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    // else go left
+                    else
+                    {
+                        while(1){
+                            left--; right--;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
+                            if(left < -1)
+                            {
+                                std::cerr<<"failed to find section id (go left to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(right, originright);
+                            PlaneNormals->GetTuple(right, normalright);
+                            vtkMath::Subtract(p, originright, vr);
+                            dotr = vtkMath::Dot(vr, normalright);
+                            if(left == -1)
+                            {
+                                if(dotr <= 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(left, originleft);
+                                PlaneNormals->GetTuple(left, normalleft);
+                                vtkMath::Subtract(p, originleft, vl);
+                                dotl = vtkMath::Dot(vl, normalleft);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go left
+                    }
+                }
+                else // id is in the middle
+                {
+                    PlaneOriginals->GetTuple(right, originright);
+                    PlaneNormals->GetTuple(right, normalright);
+                    vtkMath::Subtract(p, originright, vr);
+                    PlaneOriginals->GetTuple(left, originleft);
+                    PlaneNormals->GetTuple(left, normalleft);
+                    vtkMath::Subtract(p, originleft, vl);
+                    dotr = vtkMath::Dot(vr, normalright);
+                    dotl = vtkMath::Dot(vl, normalleft);
+                    //std::cout<<"dotr: "<<dotr<<" dotl: "<<dotl<<std::endl;
+                    if(dotr <= 0 && dotl > 0) // satisfy
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    else if(dotr <= 0 && dotl <= 0) // should go left(the point is on the left side of the current section)
+                    {
+                        while(1){
+                            left--; right--;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
+                            if(left < -1)
+                            {
+                                std::cerr<<"failed to find section id (go left to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(right, originright);
+                            PlaneNormals->GetTuple(right, normalright);
+                            vtkMath::Subtract(p, originright, vr);
+                            dotr = vtkMath::Dot(vr, normalright);
+                            if(left == -1)
+                            {
+                                if(dotr <= 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(left, originleft);
+                                PlaneNormals->GetTuple(left, normalleft);
+                                vtkMath::Subtract(p, originleft, vl);
+                                dotl = vtkMath::Dot(vl, normalleft);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go left
+                    }
+                    else if(dotr >0 && dotl > 0) // should go right(the point is on the right side of the current section)
+                    {
+
+                        while(1){
+                            left++; right ++;
+
+                            // check whether the section difference between neighboring points have reached the tolerance
+                            if(difference++ >= tolerance)
+                            {
+                                SectionIds->SetId(id, right);
+                                break;
+                            }
+
+                            if(right > model->GetNumberOfPoints())
+                            {
+                                std::cerr<<"failed to find section id (go right to the end)"<<endl;
+                                exit(1);
+                            }
+                            PlaneOriginals->GetTuple(left, originleft);
+                            PlaneNormals->GetTuple(left, normalleft);
+                            vtkMath::Subtract(p, originleft, vl);
+                            dotl = vtkMath::Dot(vl, normalleft);
+                            if(right == model->GetNumberOfPoints())
+                            {
+                                if(dotl > 0)
+                                {
+                                    SectionIds->SetId(id, right);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                PlaneOriginals->GetTuple(right, originright);
+                                PlaneNormals->GetTuple(right, normalright);
+                                vtkMath::Subtract(p, originright, vr);
+                                dotr = vtkMath::Dot(vr, normalright);
+                                {
+                                    if(dotl > 0 && dotr <=0)
+                                    {
+                                        SectionIds->SetId(id, right);
+                                        break;
+                                    }
+                                }
+                            }
+                        } // end of go right
+                    }
+                    else
+                    {
+                        std::cerr<<"failed to find section id (unreasonalbe dotl and dotr)"<<endl;
+                        exit(0);
+                    }
+                }
+                // after processing the id-th point, should process its neighbours
+                std::cout<<"set "<<id<<" to "<<right<<endl;
+            }
+        } // for(vtkIdType n = 0; n < nextlevel->GetNumberOfIds(); n++)
+        currentlevel->Reset();
+        currentlevel->DeepCopy(nextlevel);
+    } // while(1)
+}
+void Centerline::GetSectionIds_loop_v2(vtkPolyData *t_colon, vtkIdType seed, vtkIdList *SectionIds,
+                               vtkDoubleArray *PlaneOriginals, vtkDoubleArray *PlaneNormals, vtkPolyDataGroup* CircleGroup)
+{
+    int count = 0;
+    int difference = 0, tolerance = INFINITY;
     vtkSmartPointer<vtkIdList> currentlevel = vtkSmartPointer<vtkIdList>::New();
     // init
     currentlevel->InsertNextId(seed);

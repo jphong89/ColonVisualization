@@ -1,5 +1,6 @@
 #ifndef CENTERLINE_H
 #define CENTERLINE_H
+#include "vtkpolydatagroup.h"
 #include "object.h"
 #include "rendermanager.h"
 #include "filemanager.h"
@@ -77,6 +78,11 @@ public:
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                              vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
+    vtkSmartPointer<vtkPolyData> Deformation_v3_1(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
+                                             vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
+                                             vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                             vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
+                                             vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> Deformation_v4(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
@@ -104,6 +110,8 @@ public:
                        vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals);
     void GetSectionIds_loop(vtkPolyData* t_colon, vtkIdType seed, vtkIdList* SectionIds,
                        vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals);
+    void GetSectionIds_loop_v2(vtkPolyData* t_colon, vtkIdType seed, vtkIdList* SectionIds,
+                       vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals, vtkPolyDataGroup* CircleGroup);
     vtkSmartPointer<vtkIdList> GetConnectedVertices(vtkSmartPointer<vtkPolyData> mesh, vtkIdType id);
 };
 

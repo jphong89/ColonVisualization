@@ -41,6 +41,7 @@
 #include <vtkClipPolyData.h>
 #include <vtkFeatureEdges.h>
 #include <vtkLightActor.h>
+#include "vtkpolydatagroup.h"
 
 namespace Ui {
 class MainWindow;

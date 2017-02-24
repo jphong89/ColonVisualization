@@ -21,7 +21,8 @@ SOURCES += main.cpp\
     rendermanager.cpp \
     showselectedwindow.cpp \
     genesyndata.cpp \
-    lightdialog.cpp
+    lightdialog.cpp \
+    vtkpolydatagroup.cpp
 
 HEADERS  += mainwindow.h \
     filemanager.h \
@@ -31,7 +32,8 @@ HEADERS  += mainwindow.h \
     rendermanager.h \
     showselectedwindow.h \
     genesyndata.h \
-    lightdialog.h
+    lightdialog.h \
+    vtkpolydatagroup.h
 
 LIBS += -L/usr/local/lib -ldl -lGL -lvtkCommonColor-7.1 -lvtkCommonCore-7.1 \
   -lvtkCommonComputationalGeometry-7.1 -lvtkCommonDataModel-7.1 -lvtkCommonExecutionModel-7.1 \
