@@ -3140,10 +3140,10 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     vtkSmartPointer<vtkPolyData> source = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> target = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> s1 = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> s2 = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> t1 = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> t2 = vtkSmartPointer<vtkPolyData>::New();
+    //vtkSmartPointer<vtkPolyData> s1 = vtkSmartPointer<vtkPolyData>::New();
+    //vtkSmartPointer<vtkPolyData> s2 = vtkSmartPointer<vtkPolyData>::New();
+    //vtkSmartPointer<vtkPolyData> t1 = vtkSmartPointer<vtkPolyData>::New();
+    //vtkSmartPointer<vtkPolyData> t2 = vtkSmartPointer<vtkPolyData>::New();
     for(int i = 0; i <= model->GetNumberOfPoints(); i++)
     {
         if(i == 0)
@@ -3159,23 +3159,23 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         }
         else
         {
-            s2->DeepCopy(ResampledCircleGroup->GetMember(i));
-            t2->DeepCopy(ResampledLineUpGroup->GetMember(i));
-            s1->DeepCopy(ResampledCircleGroup->GetMember(i-1));
-            t1->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
+            //s2->DeepCopy(ResampledCircleGroup->GetMember(i));
+            //t2->DeepCopy(ResampledLineUpGroup->GetMember(i));
+            //s1->DeepCopy(ResampledCircleGroup->GetMember(i-1));
+            //t1->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
 
-            double cs[3], ct[3];
-            s2->GetCenter(cs); s1->GetCenter(ct);
-            std::cout<<cs[0]<<" "<<cs[1]<<" "<<cs[3]<<"  "<<ct[0]<<" "<<ct[1]<<" "<<ct[2]<<endl;
+            //double cs[3], ct[3];
+            //s2->GetCenter(cs); s1->GetCenter(ct);
+            //std::cout<<cs[0]<<" "<<cs[1]<<" "<<cs[3]<<"  "<<ct[0]<<" "<<ct[1]<<" "<<ct[2]<<endl;
 
             appendFilter->RemoveAllInputs();
-            appendFilter->AddInputData(s1);
-            appendFilter->AddInputData(s2);
+            appendFilter->AddInputData(ResampledCircleGroup->GetMember(i-1));
+            appendFilter->AddInputData(ResampledCircleGroup->GetMember(i));
             appendFilter->Update();
             source->DeepCopy(appendFilter->GetOutput());
             appendFilter->RemoveAllInputs();
-            appendFilter->AddInputData(t1);
-            appendFilter->AddInputData(t2);
+            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i-1));
+            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i));
             appendFilter->Update();
             target->DeepCopy(appendFilter->GetOutput());
         }
