@@ -83,5 +83,9 @@ vtkSmartPointer<vtkPolyData> vtkPolyDataGroup::GetMember(int id)
     }
     vtkSmartPointer<vtkPolyData> Poly = vtkSmartPointer<vtkPolyData>::New();
     Poly->SetPoints(Points);
+    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    vertexFilter->SetInputData(Poly);
+    vertexFilter->Update();
+    Poly->DeepCopy(vertexFilter->GetOutput());
     return Poly;
 }

@@ -3077,6 +3077,35 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     }
 
+    /*
+    vtkSmartPointer<vtkPolyData> test1 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> test2 = vtkSmartPointer<vtkPolyData>::New();
+    test1->DeepCopy(ResampledCircleGroup->GetMember(0));
+    test2->DeepCopy(ResampledCircleGroup->GetMember(1));
+
+    vtkSmartPointer<vtkVertexGlyphFilter> testvertex1 = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    testvertex1->SetInputData(test1);
+    testvertex1->Update();
+    vtkSmartPointer<vtkVertexGlyphFilter> testvertex2 = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    testvertex2->SetInputData(test2);
+    testvertex2->Update();
+
+    appendFilter->RemoveAllInputs();
+    appendFilter->AddInputConnection(testvertex1->GetOutputPort());
+    appendFilter->AddInputConnection(testvertex2->GetOutputPort());
+    appendFilter->Update();
+
+    vtkSmartPointer<vtkPolyDataMapper> testMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    testMapper->SetInputConnection(appendFilter->GetOutputPort());
+    testMapper->Update();
+    vtkSmartPointer<vtkActor> testActor = vtkSmartPointer<vtkActor>::New();
+    testActor->SetMapper(testMapper);
+    testActor->GetProperty()->SetColor(1,0,0);
+    testActor->GetProperty()->SetPointSize(5);
+    //std::cout<<"test has "<<test->GetNumberOfPoints()<<endl;
+    t_rendermanager->renderModel(testActor);
+    */
+
     vtkSmartPointer<vtkPolyDataMapper> OriginCutCircleMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     OriginCutCircleMapper->SetInputData(OriginCutCircle);
     OriginCutCircleMapper->Update();
@@ -3140,10 +3169,10 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     vtkSmartPointer<vtkPolyData> source = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> target = vtkSmartPointer<vtkPolyData>::New();
-    //vtkSmartPointer<vtkPolyData> s1 = vtkSmartPointer<vtkPolyData>::New();
-    //vtkSmartPointer<vtkPolyData> s2 = vtkSmartPointer<vtkPolyData>::New();
-    //vtkSmartPointer<vtkPolyData> t1 = vtkSmartPointer<vtkPolyData>::New();
-    //vtkSmartPointer<vtkPolyData> t2 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> s1 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> s2 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> t1 = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPolyData> t2 = vtkSmartPointer<vtkPolyData>::New();
     for(int i = 0; i <= model->GetNumberOfPoints(); i++)
     {
         if(i == 0)
@@ -3159,10 +3188,14 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         }
         else
         {
+
             //s2->DeepCopy(ResampledCircleGroup->GetMember(i));
             //t2->DeepCopy(ResampledLineUpGroup->GetMember(i));
+            //source->DeepCopy(ResampledCircleGroup->GetMember(i));
+            //target->DeepCopy(ResampledLineUpGroup->GetMember(i));
             //s1->DeepCopy(ResampledCircleGroup->GetMember(i-1));
             //t1->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
+
 
             //double cs[3], ct[3];
             //s2->GetCenter(cs); s1->GetCenter(ct);
@@ -3178,6 +3211,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i));
             appendFilter->Update();
             target->DeepCopy(appendFilter->GetOutput());
+
         }
         vtkSmartPointer<vtkPoints> sectionpoints = vtkSmartPointer<vtkPoints>::New();
         vtkSmartPointer<vtkPolyData> sectionpoly = vtkSmartPointer<vtkPolyData>::New();
