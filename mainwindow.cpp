@@ -89,6 +89,8 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     //m_centerline->SmoothCenterline(3);
     //m_filemanager->SaveFile(m_centerline->GetOutput(), "SmoothedCenterline.vtp");
     // Centerline-Driven Colon Deformation
+
+
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
     newColonPoly = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");

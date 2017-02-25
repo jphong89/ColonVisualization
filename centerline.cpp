@@ -1644,6 +1644,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
     // entrance to deformation versions
     return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+
     //return NULL;
 }
 
@@ -3165,14 +3166,10 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         Sections->InsertNextId(-1);
     }
     Sections->SetId(seed, 0);
-    GetSectionIds_loop(t_colon, seed, Sections, PlaneOriginals, PlaneNormals);
+    GetSectionIds_loop_v2(t_colon, seed, Sections, PlaneOriginals, PlaneNormals, CircleGroup);
 
     vtkSmartPointer<vtkPolyData> source = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> target = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> s1 = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> s2 = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> t1 = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPolyData> t2 = vtkSmartPointer<vtkPolyData>::New();
     for(int i = 0; i <= model->GetNumberOfPoints(); i++)
     {
         if(i == 0)
@@ -3188,19 +3185,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         }
         else
         {
-
-            //s2->DeepCopy(ResampledCircleGroup->GetMember(i));
-            //t2->DeepCopy(ResampledLineUpGroup->GetMember(i));
-            //source->DeepCopy(ResampledCircleGroup->GetMember(i));
-            //target->DeepCopy(ResampledLineUpGroup->GetMember(i));
-            //s1->DeepCopy(ResampledCircleGroup->GetMember(i-1));
-            //t1->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
-
-
-            //double cs[3], ct[3];
-            //s2->GetCenter(cs); s1->GetCenter(ct);
-            //std::cout<<cs[0]<<" "<<cs[1]<<" "<<cs[3]<<"  "<<ct[0]<<" "<<ct[1]<<" "<<ct[2]<<endl;
-
             appendFilter->RemoveAllInputs();
             appendFilter->AddInputData(ResampledCircleGroup->GetMember(i-1));
             appendFilter->AddInputData(ResampledCircleGroup->GetMember(i));
@@ -3211,7 +3195,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i));
             appendFilter->Update();
             target->DeepCopy(appendFilter->GetOutput());
-
         }
         vtkSmartPointer<vtkPoints> sectionpoints = vtkSmartPointer<vtkPoints>::New();
         vtkSmartPointer<vtkPolyData> sectionpoly = vtkSmartPointer<vtkPolyData>::New();
@@ -4404,6 +4387,7 @@ void Centerline::GetSectionIds_loop_v2(vtkPolyData *t_colon, vtkIdType seed, vtk
 {
     int count = 0;
     int difference = 0, tolerance = INFINITY;
+    double dis2Thres = INFINITY;
     vtkSmartPointer<vtkIdList> currentlevel = vtkSmartPointer<vtkIdList>::New();
     // init
     currentlevel->InsertNextId(seed);
@@ -4441,12 +4425,39 @@ void Centerline::GetSectionIds_loop_v2(vtkPolyData *t_colon, vtkIdType seed, vtk
                 else
                     nextlevel->InsertNextId(id);
                 vtkIdType left = currentSectionId-1, right = currentSectionId;
+
+                // refer to the current circle
+                vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+                vtkSmartPointer<vtkPolyData> currentCircle = vtkSmartPointer<vtkPolyData>::New();
+                if(currentSectionId == 0)
+                    currentCircle->DeepCopy(CircleGroup->GetMember(0));
+                else if(currentSectionId == model->GetNumberOfPoints())
+                    currentCircle->DeepCopy(CircleGroup->GetMember(model->GetNumberOfPoints()-1));
+                else
+                {
+                    appendFilter->RemoveAllInputs();
+                    appendFilter->AddInputData(CircleGroup->GetMember(left));
+                    appendFilter->AddInputData(CircleGroup->GetMember(right));
+                    appendFilter->Update();
+                    currentCircle->DeepCopy(appendFilter->GetOutput());
+                }
+                vtkSmartPointer<vtkPointLocator> pointLocator = vtkSmartPointer<vtkPointLocator>::New();
+                pointLocator->SetDataSet(currentCircle);
+                vtkIdType closestid = pointLocator->FindClosestPoint(p);
+                double closestp[3];
+                currentCircle->GetPoint(closestid, closestp);
+                double dis2 = vtkMath::Distance2BetweenPoints(closestp, p);
+
                 if(left < 0) // id is at the left end
                 {
                     PlaneOriginals->GetTuple(right, originright);
                     PlaneNormals->GetTuple(right, normalright);
                     vtkMath::Subtract(p, originright, vr);
                     if(vtkMath::Dot(vr, normalright) <= 0) // id satisfy the section criteron
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    else if(dis2 > dis2Thres) // try
                     {
                         SectionIds->SetId(id, right);
                     }
@@ -4503,6 +4514,10 @@ void Centerline::GetSectionIds_loop_v2(vtkPolyData *t_colon, vtkIdType seed, vtk
                     PlaneNormals->GetTuple(left, normalleft);
                     vtkMath::Subtract(p, originleft, vl);
                     if(vtkMath::Dot(vl, normalleft) > 0) // id satisfy the section criteron
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    else if(dis2 > dis2Thres) // try
                     {
                         SectionIds->SetId(id, right);
                     }
@@ -4565,6 +4580,10 @@ void Centerline::GetSectionIds_loop_v2(vtkPolyData *t_colon, vtkIdType seed, vtk
                     dotl = vtkMath::Dot(vl, normalleft);
                     //std::cout<<"dotr: "<<dotr<<" dotl: "<<dotl<<std::endl;
                     if(dotr <= 0 && dotl > 0) // satisfy
+                    {
+                        SectionIds->SetId(id, right);
+                    }
+                    else if(dis2 > dis2Thres) // try
                     {
                         SectionIds->SetId(id, right);
                     }
