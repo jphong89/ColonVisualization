@@ -44,7 +44,7 @@ void MainWindow::on_actionNew_file_triggered()
     m_filemanager->LoadNewFile(filePath);
     m_colon->Object::SetInput(m_filemanager->getfile());
     //m_colon->RemoveUnconnectedBlobs();
-    //m_colon->SmoothSurface();
+    m_colon->SmoothSurface();
 
     //m_colon->Decimation();
     //m_colon->SmoothSurface();

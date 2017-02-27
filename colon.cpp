@@ -3,6 +3,7 @@
 Colon::Colon()
 {
     actor->GetProperty()->SetOpacity(1);
+    //actor->GetProperty()->SetRepresentationToWireframe();
     //std::cout<<"Colon Opacity: "<<actor->GetProperty()->GetOpacity()<<endl;
 }
 void Colon::SetPoint(vtkSmartPointer<vtkPoints> points)
