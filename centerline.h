@@ -40,6 +40,7 @@
 #include <vtkClipPolyData.h>
 #include <vtkDecimatePro.h>
 #include <vtkDijkstraGraphGeodesicPath.h>
+#include <vtkIntersectionPolyDataFilter.h>
 
 class Centerline : public Object
 {
@@ -95,6 +96,7 @@ public:
     void VisualizeOriginalCurve(RenderManager* t_rendermanager);
 
     vtkSmartPointer<vtkPolyData> ReorderContour(vtkSmartPointer<vtkPolyData> cutCircle);
+    vtkSmartPointer<vtkPolyData> FormPlate(vtkSmartPointer<vtkPolyData> cutCircle);
     double SinglePath(double **costVrt, double **costHrz,int sx, int sy, int tx, int ty, int *steps);
     void ContoursToSurface(RenderManager* t_rendermanager, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> ConnectTwoContours(vtkSmartPointer<vtkPolyData> circle1, vtkSmartPointer<vtkPolyData> circle2);

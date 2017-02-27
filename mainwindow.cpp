@@ -43,7 +43,7 @@ void MainWindow::on_actionNew_file_triggered()
 
     m_filemanager->LoadNewFile(filePath);
     m_colon->Object::SetInput(m_filemanager->getfile());
-    m_colon->RemoveUnconnectedBlobs();
+    //m_colon->RemoveUnconnectedBlobs();
     m_colon->SmoothSurface();
 
     //m_colon->Decimation();
@@ -53,16 +53,16 @@ void MainWindow::on_actionNew_file_triggered()
     //addlight();
     //m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
 
-/*
+
+
     vtkSmartPointer<vtkPolyData> testcutcircle = vtkSmartPointer<vtkPolyData>::New();
     testcutcircle = m_centerline->ReorderContour(m_colon->GetOutput());
-    testcutcircle = m_colon->GetOutput();
-    std::cout<<testcutcircle->GetNumberOfPoints()<<endl;
-    m_centerline->UniformSample(20, testcutcircle);
-    std::cout<<testcutcircle->GetNumberOfPoints()<<endl;
+    testcutcircle = m_centerline->FormPlate(testcutcircle);
+    //testcutcircle = m_centerline->FormPlate(testcutcircle);
+    //std::cout<<testcutcircle->GetNumberOfPoints()<<endl;
+    //m_centerline->UniformSample(20, testcutcircle);
+    //std::cout<<testcutcircle->GetNumberOfPoints()<<endl;
     m_colon->Object::SetInput(testcutcircle);
-    */
-
     //m_colon->FillHoles();
     //m_colon->SmoothSurface();
     m_rendermanager->renderModel(m_colon->GetActor());

@@ -59,7 +59,7 @@ void Colon::FillHoles(vtkSmartPointer<vtkPolyData> object)
         filter->SetInputData(model);
     else
         filter->SetInputData(object);
-    filter->SetHoleSize(100000.0);
+    filter->SetHoleSize(10.0);
     filter->Update();
     if(!object)
         model->DeepCopy(filter->GetOutput());

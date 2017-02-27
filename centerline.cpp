@@ -1751,6 +1751,56 @@ vtkSmartPointer<vtkPolyData> Centerline::ReorderContour(vtkSmartPointer<vtkPolyD
     free(Ids);
     return ReorderedCircle;
 }
+vtkSmartPointer<vtkPolyData> Centerline::FormPlate(vtkSmartPointer<vtkPolyData> cutCircle)
+{
+    // assume the cutcircle is processed by ReorderContour
+    int N = cutCircle->GetNumberOfPoints();
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> triangles = vtkSmartPointer<vtkCellArray>::New();
+    double cp[3] = {0};
+    for(int i = 0;  i<N; i++)
+    {
+        double p[3];
+        cutCircle->GetPoint(i, p);
+        points->InsertNextPoint(p);
+        cp[0] += p[0]; cp[1] += p[1]; cp[2] += p[2];
+        vtkSmartPointer<vtkTriangle> triangle = vtkSmartPointer<vtkTriangle>::New();
+        triangle->GetPointIds()->SetId(0, i);
+        triangle->GetPointIds()->SetId(1, (i+1)%N);
+        triangle->GetPointIds()->SetId(2, N);
+        triangles->InsertNextCell(triangle);
+    }
+    cp[0] /= N; cp[1] /= N; cp[2] /= N;
+    points->InsertNextPoint(cp);
+    vtkSmartPointer<vtkPolyData> plate = vtkSmartPointer<vtkPolyData>::New();
+    plate->SetPoints(points);
+    plate->SetPolys(triangles);
+
+
+
+
+    vtkSmartPointer<vtkPoints> testedgepoints = vtkSmartPointer<vtkPoints>::New();
+    double p1[3] = {0,0,-1}, p2[3] = {0,0,1};
+    testedgepoints->InsertNextPoint(p1);
+    testedgepoints->InsertNextPoint(p2);
+    vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+    line->GetPointIds()->SetId(0, 0);
+    line->GetPointIds()->SetId(1,1);
+    vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
+    lines->InsertNextCell(line);
+    vtkSmartPointer<vtkPolyData> testedge = vtkSmartPointer<vtkPolyData>::New();
+    testedge->SetPoints(testedgepoints);
+    testedge->SetLines(lines);
+    vtkSmartPointer<vtkIntersectionPolyDataFilter> interfilter = vtkSmartPointer<vtkIntersectionPolyDataFilter>::New();
+    interfilter->AddInputData(testedge);
+    interfilter->AddInputData(plate);
+    interfilter->GetOutput();
+    vtkSmartPointer<vtkPolyData> inter = vtkSmartPointer<vtkPolyData>::New();
+
+
+    return plate;
+}
+
 double Centerline::SinglePath(double **costVrt, double **costHrz, int sx, int sy, int tx, int ty, int *steps)
 {
     int m = tx - sx;
