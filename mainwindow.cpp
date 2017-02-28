@@ -54,7 +54,7 @@ void MainWindow::on_actionNew_file_triggered()
     //m_filemanager->SaveFile(m_colon->GetOutput(), "TexturedColon.vtp");
 
 
-/*
+    /*
     vtkSmartPointer<vtkPolyData> testcutcircle = vtkSmartPointer<vtkPolyData>::New();
     testcutcircle = m_centerline->ReorderContour(m_colon->GetOutput());
     testcutcircle = m_centerline->FormPlate(testcutcircle);
@@ -67,8 +67,9 @@ void MainWindow::on_actionNew_file_triggered()
     //m_colon->SmoothSurface();
 
     //m_colon->testDeformation();
-    //m_filemanager->SaveFile(m_colon->GetOutput(), "/home/ruibinma/Desktop/colon.off");
     */
+    //m_filemanager->SaveFile(m_colon->GetOutput(), "/home/ruibinma/Desktop/colon.off");
+
 
     m_rendermanager->renderModel(m_colon->GetActor());
     QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");

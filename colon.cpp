@@ -88,3 +88,8 @@ void Colon::RemoveUnconnectedBlobs(vtkSmartPointer<vtkPolyData> object)
     }
 
 }
+void Colon::CleanSingleEdgePoints()
+{
+    vtkSmartPointer<vtkSelectionNode> selectionNode = vtkSmartPointer<vtkSelectionNode>::New();
+    //selectionNode
+}

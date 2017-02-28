@@ -1642,6 +1642,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         RefDirections->InsertNextTuple(projection);
     }
     // entrance to deformation versions
+    //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return NULL;
 }
@@ -2541,7 +2542,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
         double p[3];
         t_colon->GetPoint(i, p);
         std::cout<<i<<" -> "<<p[0]<<" "<<p[1]<<" "<<p[2]<<" + "<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
-        file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
+        file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<1<<std::endl;
     }
     file.close();
 
@@ -3183,6 +3184,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     seedLocator->BuildLocator();
     vtkIdType seed = seedLocator->FindClosestPoint(pp);
     t_colon->GetPoint(seed, pseed);
+    std::cout<<"Seed Point ID: "<<seed<<std::endl;
     vtkSmartPointer<vtkPoints> seedpoints = vtkSmartPointer<vtkPoints>::New();
     seedpoints->InsertNextPoint(pseed);
     vtkSmartPointer<vtkPolyData> seedpoly = vtkSmartPointer<vtkPolyData>::New();
@@ -4453,12 +4455,14 @@ void Centerline::GetSectionIds_loop_v2(vtkPolyData *t_colon, vtkIdType seed, vtk
             connectedVertices = GetConnectedVertices(t_colon, pointid);
             vtkIdType currentSectionId = SectionIds->GetId(pointid);
 
+
             std::cout<<"pointid : "<<pointid<<"(current section "<<currentSectionId<<") "<<connectedVertices->GetNumberOfIds()<<": ";
             for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
             {
                 std::cout<<connectedVertices->GetId(i)<<" ";
             }
             std::cout<<endl;
+
 
             for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
             {

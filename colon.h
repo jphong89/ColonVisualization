@@ -6,6 +6,9 @@
 #include <vtkDecimatePro.h>
 #include <vtkFillHolesFilter.h>
 #include <vtkPolyDataConnectivityFilter.h>
+#include <vtkExtractSelection.h>
+#include <vtkSelection.h>
+#include <vtkSelectionNode.h>
 
 class Colon : public Object
 {
@@ -20,6 +23,7 @@ public:
     void testDeformation();
     void FillHoles(vtkSmartPointer<vtkPolyData> object = NULL);
     void RemoveUnconnectedBlobs(vtkSmartPointer<vtkPolyData> object = NULL);
+    void CleanSingleEdgePoints();
 };
 
 #endif // COLON_H
