@@ -93,6 +93,12 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     //m_filemanager->SaveFile(m_centerline->GetOutput(), "SmoothedCenterline.vtp");
     // Centerline-Driven Colon Deformation
 
+    // get the origin point
+    /*
+    double p[3];
+    m_centerline->GetOutput()->GetPoint(0, p);
+    std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+    */
 
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
     newColonPoly = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
@@ -641,6 +647,150 @@ void MainWindow::on_actionLighting_triggered()
 
 void MainWindow::on_action_Deform_Colon_triggered()
 {
+    double factor = 3, r0 = 18.5793, adjust = 0.75;
+    double aver = 0;
+    double origin[3] = {667.6, 491.462, -213.051}, normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
+    vtkSmartPointer<vtkPlane> clipPlane = vtkSmartPointer<vtkPlane>::New();
+    clipPlane->SetOrigin(origin);
+    clipPlane->SetNormal(normal);
+    vtkSmartPointer<vtkClipPolyData> clipper = vtkSmartPointer<vtkClipPolyData>::New();
+    clipper->SetClipFunction(clipPlane);
+    clipper->SetInputData(m_colon->GetOutput());
+    clipper->Update();
+    vtkSmartPointer<vtkPolyData> leftpart = vtkSmartPointer<vtkPolyData>::New();
+    leftpart->DeepCopy(clipper->GetOutput());
+    vtkSmartPointer<vtkPoints> leftnewpoints = vtkSmartPointer<vtkPoints>::New();
+    for(int i=0; i < leftpart->GetNumberOfPoints(); i++)
+    {
+        double p[3], v[3];
+        leftpart->GetPoint(i, p);
+        vtkMath::Subtract(p, origin, v);
+        double x = vtkMath::Dot(d1, v);
+        double z = vtkMath::Dot(normal, v);
+        if(z < 0) z = -z;
+        double y = vtkMath::Dot(d2, v);
+        double r = sqrt(z*z + y*y);
+        double angle = acos(y/r);
+        double newr = r * factor * exp(adjust *((r0 - r)/r0));
+        double newangle = angle / factor;
+
+        double newy = newr * cos(newangle);
+        double newz = newr * sin(newangle);
+
+        double vx[3], vy[3], vz[3], temp1[3], temp2[3], newp[3];
+        vx[0] = d1[0]; vx[1] = d1[1]; vx[2] = d1[2];
+        vy[0] = d2[0]; vy[1] = d2[1]; vy[2] = d2[2];
+        vz[0] = normal[0]; vz[1] = normal[1]; vz[2] = normal[2];
+        vtkMath::MultiplyScalar(vx, x);
+        vtkMath::MultiplyScalar(vy, newy);
+        vtkMath::MultiplyScalar(vz, newz);
+        vtkMath::Add(origin, vx, temp1);
+        vtkMath::Add(temp1, vy, temp2);
+        vtkMath::Add(temp2, vz, newp);
+        leftnewpoints->InsertNextPoint(newp);
+        aver += r;
+    }
+    leftpart->SetPoints(leftnewpoints);
+
+    vtkSmartPointer<vtkPolyData> rightpart = vtkSmartPointer<vtkPolyData>::New();
+    vtkMath::MultiplyScalar(normal, -1);
+    clipPlane->SetNormal(normal);
+    clipper->SetClipFunction(clipPlane);
+    clipper->Update();
+    rightpart->DeepCopy(clipper->GetOutput());
+    vtkSmartPointer<vtkPoints> rightnewpoints = vtkSmartPointer<vtkPoints>::New();
+    for(int i=0; i < rightpart->GetNumberOfPoints(); i++)
+    {
+        double p[3], v[3];
+        rightpart->GetPoint(i, p);
+        vtkMath::Subtract(p, origin, v);
+        double x = vtkMath::Dot(d1, v);
+        double z = vtkMath::Dot(normal, v);
+        if(z < 0) z = -z;
+        double y = vtkMath::Dot(d2, v);
+        double r = sqrt(z*z + y*y);
+        double angle = acos(y/r);
+        double newr = r * factor * exp(adjust *((r0 - r)/r0));
+        double newangle = angle / factor;
+
+        double newy = newr * cos(newangle);
+        double newz = newr * sin(newangle);
+
+        double vx[3], vy[3], vz[3], temp1[3], temp2[3], newp[3];
+        vx[0] = d1[0]; vx[1] = d1[1]; vx[2] = d1[2];
+        vy[0] = d2[0]; vy[1] = d2[1]; vy[2] = d2[2];
+        vz[0] = normal[0]; vz[1] = normal[1]; vz[2] = normal[2];
+        vtkMath::MultiplyScalar(vx, x);
+        vtkMath::MultiplyScalar(vy, newy);
+        vtkMath::MultiplyScalar(vz, newz);
+        vtkMath::Add(origin, vx, temp1);
+        vtkMath::Add(temp1, vy, temp2);
+        vtkMath::Add(temp2, vz, newp);
+        rightnewpoints->InsertNextPoint(newp);
+        aver += r;
+    }
+    rightpart->SetPoints(rightnewpoints);
+    aver = aver / (leftpart->GetNumberOfPoints() + rightpart->GetNumberOfPoints());
+    std::cout<<"Average radius is "<<aver<<endl;
+
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    appendFilter->AddInputData(leftpart);
+    appendFilter->AddInputData(rightpart);
+    appendFilter->Update();
+    vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleanFilter->SetInputConnection(appendFilter->GetOutputPort());
+    cleanFilter->Update();
+    vtkSmartPointer<vtkPolyData> bended = vtkSmartPointer<vtkPolyData>::New();
+    bended->DeepCopy(cleanFilter->GetOutput());
+
+    vtkSmartPointer<vtkPolyDataMapper> selectedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    selectedMapper->SetInputData(bended);
+    vtkSmartPointer<vtkActor> selectedActor = vtkSmartPointer<vtkActor>::New();
+    selectedActor->SetMapper(selectedMapper);
+
+    vtkSmartPointer<vtkFeatureEdges> featureEdges =
+            vtkSmartPointer<vtkFeatureEdges>::New();
+    featureEdges->SetInputData(bended);
+    featureEdges->BoundaryEdgesOn();
+    featureEdges->FeatureEdgesOff();
+    featureEdges->ManifoldEdgesOff();
+    featureEdges->NonManifoldEdgesOff();
+    featureEdges->Update();
+
+    // Visualize
+    vtkSmartPointer<vtkPolyDataMapper> edgeMapper =
+            vtkSmartPointer<vtkPolyDataMapper>::New();
+    edgeMapper->SetInputConnection(featureEdges->GetOutputPort());
+    vtkSmartPointer<vtkActor> edgeActor =
+            vtkSmartPointer<vtkActor>::New();
+    edgeActor->SetMapper(edgeMapper);
+    edgeActor->GetProperty()->SetColor(255,0,0);
+
+    m_showselectedwindow.show();
+    m_showselectedwindow.RenderSelected(selectedActor);
+    //m_showselectedwindow.RenderSelected(edgeActor);
+    //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
+
+    /*
+    double position[3] = {0,0, -30};
+    vtkMath::Add(position, edgeActor->GetCenter(), position);
+    m_showselectedwindow.GetRenderManager().GetLight()->SetPosition(position);
+
+    double direction[3] = {0, 0, -1};
+    vtkMath::Add(direction, edgeActor->GetCenter(), direction);
+    m_showselectedwindow.GetRenderManager().GetLight()->SetFocalPoint(direction);
+
+    vtkSmartPointer<vtkLightActor> lightActor = vtkSmartPointer<vtkLightActor>::New();
+    lightActor->SetLight(m_showselectedwindow.GetRenderManager().GetLight());
+    m_showselectedwindow.GetRenderManager().GetRender()->AddViewProp(lightActor);
+    */
+
+    //m_showselectedwindow.GetRenderManager().GetRender()->LightFollowCameraOff();
+    m_showselectedwindow.GetRenderManager().addlight();
+}
+/*
+void MainWindow::on_action_Deform_Colon_triggered()
+{
     vtkSmartPointer<vtkPlane> clipPlane = vtkSmartPointer<vtkPlane>::New();
     clipPlane->SetOrigin(0, 0, -213.051);
     clipPlane->SetNormal(0, 0, 1);
@@ -676,7 +826,7 @@ void MainWindow::on_action_Deform_Colon_triggered()
     m_showselectedwindow.RenderSelected(edgeActor);
     m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
 
-    /*
+
     double position[3] = {0,0, -30};
     vtkMath::Add(position, edgeActor->GetCenter(), position);
     m_showselectedwindow.GetRenderManager().GetLight()->SetPosition(position);
@@ -688,8 +838,9 @@ void MainWindow::on_action_Deform_Colon_triggered()
     vtkSmartPointer<vtkLightActor> lightActor = vtkSmartPointer<vtkLightActor>::New();
     lightActor->SetLight(m_showselectedwindow.GetRenderManager().GetLight());
     m_showselectedwindow.GetRenderManager().GetRender()->AddViewProp(lightActor);
-    */
+
 
     //m_showselectedwindow.GetRenderManager().GetRender()->LightFollowCameraOff();
     m_showselectedwindow.GetRenderManager().addlight();
 }
+*/
