@@ -2542,7 +2542,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v2(vtkSmartPointer<vtkDoubl
         double p[3];
         t_colon->GetPoint(i, p);
         std::cout<<i<<" -> "<<p[0]<<" "<<p[1]<<" "<<p[2]<<" + "<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
-        file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<1<<std::endl;
+        file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
     }
     file.close();
 
@@ -3295,6 +3295,35 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     t_rendermanager->renderModel(SurfaceLineUpActor);
     t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v3_1.stl");
 
+    // output a deformation file
+
+    pointLocator->RemoveAllObservers();
+    pointLocator->SetDataSet(t_colon);
+    pointLocator->BuildLocator();
+    bool* Is_Fixed = (bool*)malloc(sizeof(bool) * t_colon->GetNumberOfPoints());
+    memset(Is_Fixed, 0, sizeof(bool) * t_colon->GetNumberOfPoints());
+    vtkSmartPointer<vtkDoubleArray> DeformationField = vtkSmartPointer<vtkDoubleArray>::New();
+    for(vtkIdType i = 0; i < OriginCutCircle->GetNumberOfPoints(); i++)
+    {
+        double p[3];
+        OriginCutCircle->GetPoint(i, p);
+        vtkIdType id = pointLocator->FindClosestPoint(p);
+        Is_Fixed[id] = true;
+    }
+    ofstream file;
+    file.open("/home/ruibinma/Desktop/deformation_v3_1.txt");
+    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        double p[3], np[3], v[3];
+        t_colon->GetPoint(i, p);
+        SurfaceLineUp->GetPoint(i, np);
+        vtkMath::Subtract(np, p, v);
+        file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
+    }
+    file.close();
+    //
+
+    free(Is_Fixed);
     delete CircleGroup;
     delete ResampledCircleGroup;
     delete ResampledLineUpGroup;
