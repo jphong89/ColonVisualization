@@ -3216,6 +3216,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         Sections->InsertNextId(-1);
     }
     Sections->SetId(seed, 0);
+    GetSectionIds_loop(t_colon, seed, Sections, PlaneOriginals, PlaneNormals);
     GetSectionIds_loop_v2(t_colon, seed, Sections, PlaneOriginals, PlaneNormals, CircleGroup);
     //GetSectionIds_loop_combinehighcurvatures(t_colon, seed, Sections, PlaneOriginals, PlaneNormals, Curvatures);
 
@@ -3225,14 +3226,34 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     {
         if(i == 0)
         {
-            source->DeepCopy(ResampledCircleGroup->GetMember(i));
-            target->DeepCopy(ResampledLineUpGroup->GetMember(i));
+            appendFilter->RemoveAllInputs();
+            appendFilter->AddInputData(ResampledCircleGroup->GetMember(0));
+            appendFilter->AddInputData(ResampledCircleGroup->GetMember(1));
+            appendFilter->Update();
+            source->DeepCopy(appendFilter->GetOutput());
+            appendFilter->RemoveAllInputs();
+            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(0));
+            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(1));
+            appendFilter->Update();
+            target->DeepCopy(appendFilter->GetOutput());
+            //source->DeepCopy(ResampledCircleGroup->GetMember(i));
+            //target->DeepCopy(ResampledLineUpGroup->GetMember(i));
 
         }
         else if(i == model->GetNumberOfPoints())
         {
-            source->DeepCopy(ResampledCircleGroup->GetMember(i-1));
-            target->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
+            appendFilter->RemoveAllInputs();
+            appendFilter->AddInputData(ResampledCircleGroup->GetMember(i-2));
+            appendFilter->AddInputData(ResampledCircleGroup->GetMember(i-1));
+            appendFilter->Update();
+            source->DeepCopy(appendFilter->GetOutput());
+            appendFilter->RemoveAllInputs();
+            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i-2));
+            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i-1));
+            appendFilter->Update();
+            target->DeepCopy(appendFilter->GetOutput());
+            //source->DeepCopy(ResampledCircleGroup->GetMember(i-1));
+            //target->DeepCopy(ResampledLineUpGroup->GetMember(i-1));
         }
         else
         {
@@ -4192,7 +4213,7 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
                                vtkDoubleArray *PlaneOriginals, vtkDoubleArray *PlaneNormals)
 {
     int count = 0;
-    int difference = 0, tolerance = 1;
+    int difference = 0, tolerance = INFINITY;
     vtkSmartPointer<vtkIdList> currentlevel = vtkSmartPointer<vtkIdList>::New();
     // init
     currentlevel->InsertNextId(seed);

@@ -768,6 +768,8 @@ void MainWindow::on_action_Deform_Colon_triggered()
 
     m_showselectedwindow.show();
     m_showselectedwindow.RenderSelected(selectedActor);
+
+    m_filemanager->SaveFile(bended, "openedcolon.off");
     //m_showselectedwindow.RenderSelected(edgeActor);
     //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
 
@@ -786,7 +788,7 @@ void MainWindow::on_action_Deform_Colon_triggered()
     */
 
     //m_showselectedwindow.GetRenderManager().GetRender()->LightFollowCameraOff();
-    m_showselectedwindow.GetRenderManager().addlight();
+    //m_showselectedwindow.GetRenderManager().addlight();
 }
 /*
 void MainWindow::on_action_Deform_Colon_triggered()
