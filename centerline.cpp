@@ -1309,18 +1309,22 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
                 if(i == 0)
                 {
+                    cutline->DeepCopy(ReorderContour(cutline));
+                    UniformSample(cutline->GetNumberOfPoints()*2, cutline);
                     lastCircle->DeepCopy(cutline);
                 }
                 else
                 {
                     for(vtkIdType j = 0; j < lastCircle->GetNumberOfPoints(); j++)
                     {
-                        if(cutline->GetNumberOfPoints() > 100)
+                        if(cutline->GetNumberOfPoints() >= 80)
                             break;
                         connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
                         connectivityFilter->Update();
                         cutline = connectivityFilter->GetOutput();
                     }
+                    cutline->DeepCopy(ReorderContour(cutline));
+                    UniformSample(cutline->GetNumberOfPoints()*(int)(249866 / t_colon->GetNumberOfPoints()), cutline);
                     lastCircle->DeepCopy(cutline);
                 }
 
@@ -1361,7 +1365,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
                     {
                         innerNum++;
                         double Krel = angleCos * Curvatures->GetValue(j);
-                        if(r*Krel > 1)
+                        if(r*Krel >= 1)
                         {
                             violationNum++;
                             sign = 1;
@@ -1471,7 +1475,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> NormalCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     NormalCutCirclesActor->SetMapper(NormalCutCirclesMapper);
     NormalCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
-    t_rendermanager->renderModel(NormalCutCirclesActor);
+    //t_rendermanager->renderModel(NormalCutCirclesActor);
 
     // visualize the violation points
     /*
@@ -1489,6 +1493,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     ViolationPointsActor->GetProperty()->SetColor(1,0,0);
     t_rendermanager->renderModel(ViolationPointsActor);
     */
+
 
     // relax the Orthogonality
     vtkSmartPointer<vtkIdList> tempViolationTail = vtkSmartPointer<vtkIdList>::New();
@@ -1583,7 +1588,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             PlaneNormals->SetTuple(ViolationHead->GetId(i) + j - 1, t);
             //std::cout<<"set "<<ViolationHead->GetId(i)+j-1<<endl;
 
-            /* //visualize the modified cutcircle in yello
+            /* //visualize the modified cutcircle in yellow
             newcutter->SetCutFunction(newplane);
             newcutter->Update();
             double centerPoint[3];
@@ -1601,6 +1606,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             newcleanFilter->Update();
             NewCutlines->DeepCopy(newcleanFilter->GetOutput());
             */
+
         }
     }
 
@@ -3070,7 +3076,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             for(vtkIdType j = 0; j<lastCircle->GetNumberOfPoints(); j++)
             {
 
-                if(cutCircle->GetNumberOfPoints() >= 100)
+                if(cutCircle->GetNumberOfPoints() >= 80)
                     break;
                 connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
                 connectivityFilter->Update();
@@ -3087,11 +3093,9 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         appendFilter->Update();
         OriginCutCircle->DeepCopy(appendFilter->GetOutput());
 
-        cutCircle->DeepCopy(ReorderContour(cutCircle));
-        UniformSample(40, cutCircle);
-        ResampledCircleGroup->AddMember(cutCircle);
-
         vtkSmartPointer<vtkPoints> newCutCircle = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkPolyData> newCutCirclePoly = vtkSmartPointer<vtkPolyData>::New();
+        newCutCirclePoly->DeepCopy(cutCircle);
         for(vtkIdType j=0; j<cutCircle->GetNumberOfPoints(); j++)
         {
             double p[3];
@@ -3115,16 +3119,45 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             vtkMath::Add(tmp2, vz, pp);
             newCutCircle->InsertNextPoint(pp);
         }
-        cutCircle->SetPoints(newCutCircle);
-
-        ResampledLineUpGroup->AddMember(cutCircle);
-
+        newCutCirclePoly->SetPoints(newCutCircle);
         appendFilter->RemoveAllInputs();
         appendFilter->AddInputData(CutCircleLineUp);
-        appendFilter->AddInputData(cutCircle);
+        appendFilter->AddInputData(newCutCirclePoly);
         appendFilter->Update();
         CutCircleLineUp->DeepCopy(appendFilter->GetOutput());
 
+
+        cutCircle->DeepCopy(ReorderContour(cutCircle));
+        UniformSample(40, cutCircle);
+        ResampledCircleGroup->AddMember(cutCircle);
+
+        vtkSmartPointer<vtkPoints> newResampledCutCircle = vtkSmartPointer<vtkPoints>::New();
+        for(vtkIdType j=0; j<cutCircle->GetNumberOfPoints(); j++)
+        {
+            double p[3];
+            cutCircle->GetPoint(j, p);
+            double vector[3];
+            vtkMath::Subtract(p, oldp, vector);
+            double coordinate[3];
+            coordinate[0] = vtkMath::Dot(vector, told);
+            coordinate[1] = vtkMath::Dot(vector, nold);
+            coordinate[2] = vtkMath::Dot(vector, bold);
+            double pp[3];
+            double vx[3], vy[3], vz[3], tmp1[3], tmp2[3];
+            NewTangents->GetTuple(i, vx);
+            NewNormals->GetTuple(i, vy);
+            NewBinormals->GetTuple(i, vz);
+            vtkMath::MultiplyScalar(vx, coordinate[0]);
+            vtkMath::MultiplyScalar(vy, coordinate[1]);
+            vtkMath::MultiplyScalar(vz, coordinate[2]);
+            vtkMath::Add(newp, vx, tmp1);
+            vtkMath::Add(tmp1, vy, tmp2);
+            vtkMath::Add(tmp2, vz, pp);
+            newResampledCutCircle->InsertNextPoint(pp);
+        }
+        cutCircle->SetPoints(newResampledCutCircle);
+
+        ResampledLineUpGroup->AddMember(cutCircle);
     }
 
     /*
@@ -3204,11 +3237,13 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
     points->SetNumberOfPoints(t_colon->GetNumberOfPoints());
 
+    /*
     for(int i = 0; i < CircleGroup->GetNumOfMembers(); i++)
     {
         std::cout<<"circle "<<i<<" has "<<CircleGroup->GetMember(i)->GetNumberOfPoints()<<
                    "(resampled to "<<ResampledCircleGroup->GetMember(i)->GetNumberOfPoints()<<")"<<endl;
     }
+    */
 
     vtkSmartPointer<vtkIdList> Sections = vtkSmartPointer<vtkIdList>::New();
     for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
@@ -3217,7 +3252,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     }
     Sections->SetId(seed, 0);
     GetSectionIds_loop(t_colon, seed, Sections, PlaneOriginals, PlaneNormals);
-    GetSectionIds_loop_v2(t_colon, seed, Sections, PlaneOriginals, PlaneNormals, CircleGroup);
+    //GetSectionIds_loop_v2(t_colon, seed, Sections, PlaneOriginals, PlaneNormals, CircleGroup);
     //GetSectionIds_loop_combinehighcurvatures(t_colon, seed, Sections, PlaneOriginals, PlaneNormals, Curvatures);
 
     vtkSmartPointer<vtkPolyData> source = vtkSmartPointer<vtkPolyData>::New();
@@ -3317,9 +3352,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v3_1.stl");
 
     // output a deformation file
-
     pointLocator->RemoveAllObservers();
-    pointLocator->SetDataSet(t_colon);
+    pointLocator->SetDataSet(SurfaceLineUp);
     pointLocator->BuildLocator();
     bool* Is_Fixed = (bool*)malloc(sizeof(bool) * t_colon->GetNumberOfPoints());
     memset(Is_Fixed, 0, sizeof(bool) * t_colon->GetNumberOfPoints());
@@ -3327,7 +3361,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     for(vtkIdType i = 0; i < OriginCutCircle->GetNumberOfPoints(); i++)
     {
         double p[3];
-        OriginCutCircle->GetPoint(i, p);
+        CutCircleLineUp->GetPoint(i, p);
         vtkIdType id = pointLocator->FindClosestPoint(p);
         Is_Fixed[id] = true;
     }
@@ -3342,6 +3376,33 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
     }
     file.close();
+    //
+    //visualize the fixed points
+    vtkSmartPointer<vtkPoints> fixedPoints = vtkSmartPointer<vtkPoints>::New();
+    for(vtkIdType i = 1; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        if(Is_Fixed[i])
+        {
+            double p[3], q[3];
+            SurfaceLineUp->GetPoint(i, p);
+            fixedPoints->InsertNextPoint(p);
+            t_colon->GetPoint(i, q);
+            fixedPoints->InsertNextPoint(q);
+        }
+    }
+    vtkSmartPointer<vtkPolyData> fixedPoly = vtkSmartPointer<vtkPolyData>::New();
+    fixedPoly->SetPoints(fixedPoints);
+    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    vertexFilter->SetInputData(fixedPoly);
+    vertexFilter->Update();
+    vtkSmartPointer<vtkPolyDataMapper> fixedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    fixedMapper->SetInputConnection(vertexFilter->GetOutputPort());
+    fixedMapper->Update();
+    vtkSmartPointer<vtkActor> fixedActor = vtkSmartPointer<vtkActor>::New();
+    fixedActor->SetMapper(fixedMapper);
+    fixedActor->GetProperty()->SetPointSize(5);
+    fixedActor->GetProperty()->SetColor(1,1,0);
+    t_rendermanager->renderModel(fixedActor);
     //
 
     free(Is_Fixed);
@@ -4221,7 +4282,7 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
     while(currentlevel->GetNumberOfIds() > 0)
     {
         count += currentlevel->GetNumberOfIds();
-        std::cout<<"processed "<<count<<" points"<<endl;
+        //std::cout<<"processed "<<count<<" points"<<endl;
         vtkSmartPointer<vtkIdList> nextlevel = vtkSmartPointer<vtkIdList>::New();
         for(vtkIdType n = 0; n < currentlevel->GetNumberOfIds(); n++)
         {
@@ -4230,12 +4291,14 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
             connectedVertices = GetConnectedVertices(t_colon, pointid);
             vtkIdType currentSectionId = SectionIds->GetId(pointid);
 
+            /*
             std::cout<<"pointid : "<<pointid<<"(current section "<<currentSectionId<<") "<<connectedVertices->GetNumberOfIds()<<": ";
             for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
             {
                 std::cout<<connectedVertices->GetId(i)<<" ";
             }
             std::cout<<endl;
+            */
 
             for(vtkIdType i = 0; i < connectedVertices->GetNumberOfIds(); i++)
             {
@@ -4476,7 +4539,7 @@ void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdL
                     }
                 }
                 // after processing the id-th point, should process its neighbours
-                std::cout<<"set "<<id<<" to "<<right<<endl;
+                //std::cout<<"set "<<id<<" to "<<right<<endl;
             }
         } // for(vtkIdType n = 0; n < nextlevel->GetNumberOfIds(); n++)
         currentlevel->Reset();
