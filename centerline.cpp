@@ -4,6 +4,7 @@
 #include <vtkMath.h>
 #include <unistd.h>
 #include <vtkSMPTools.h>
+#include <Eigen/Sparse>
 
 class CutCircleOp // this class is used for parallel computing using vtkSMPTools
 {

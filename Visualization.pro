@@ -46,7 +46,8 @@ LIBS += -L/usr/local/lib -ldl -lGL -lvtkCommonColor-7.1 -lvtkCommonCore-7.1 \
   -lvtkRenderingQt-7.1 -lvtkRenderingVolume-7.1 -lvtkalglib-7.1 -lvtkjsoncpp-7.1 -lvtksys-7.1 -lvtkzlib-7.1 \
   -lvtkIOXML-7.1 -lvtkFiltersModeling-7.1
 
-INCLUDEPATH += /usr/local/include/vtk-7.1
+INCLUDEPATH += /usr/local/include/vtk-7.1 \
+               ./eigen
 
 FORMS    += mainwindow.ui \
     showselectedwindow.ui \
