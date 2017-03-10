@@ -50,3 +50,12 @@ void updateA(int m, int i1, int i2, double weight,std::map<int, double> &coeffic
         coefficientMap[k] = iter->second + weight;
     }
 }
+
+void constructA(int idx, std::map<int, double> &coefficientMap)
+{
+
+}
+void constructb(int idx, double *b)
+{
+
+}
