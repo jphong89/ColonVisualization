@@ -4,6 +4,7 @@
 #include "object.h"
 #include "rendermanager.h"
 #include "filemanager.h"
+#include "optimization.h"
 #include <stdlib.h>
 #include <malloc.h>
 #include <math.h>
