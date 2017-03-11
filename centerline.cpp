@@ -4092,59 +4092,7 @@ void Centerline::GetSectionIds(vtkPolyData *t_colon, vtkIdType pointid, vtkIdLis
         GetSectionIds(t_colon, id, SectionIds, PlaneOriginals, PlaneNormals);
     }
 }
-vtkSmartPointer<vtkIdList> Centerline::GetConnectedVertices(vtkSmartPointer<vtkPolyData> mesh, vtkIdType id)
-{
-    vtkSmartPointer<vtkIdList> connectedVertices =
-            vtkSmartPointer<vtkIdList>::New();
 
-    //get all cells that vertex 'id' is a part of
-    vtkSmartPointer<vtkIdList> cellIdList =
-            vtkSmartPointer<vtkIdList>::New();
-    mesh->GetPointCells(id, cellIdList);
-
-    /*
-      cout << "Vertex 0 is used in cells ";
-      for(vtkIdType i = 0; i < cellIdList->GetNumberOfIds(); i++)
-        {
-        cout << cellIdList->GetId(i) << ", ";
-        }
-      cout << endl;
-      */
-
-    for(vtkIdType i = 0; i < cellIdList->GetNumberOfIds(); i++)
-    {
-        //cout << "id " << i << " : " << cellIdList->GetId(i) << endl;
-
-        vtkSmartPointer<vtkIdList> pointIdList =
-                vtkSmartPointer<vtkIdList>::New();
-        mesh->GetCellPoints(cellIdList->GetId(i), pointIdList);
-
-        //cout << "End points are " << pointIdList->GetId(0) << " and " << pointIdList->GetId(1) << endl;
-
-        /*
-        if(pointIdList->GetId(0) != id)
-        {
-            //cout << "Connected to " << pointIdList->GetId(0) << endl;
-            connectedVertices->InsertNextId(pointIdList->GetId(0));
-        }
-        else
-        {
-            //cout << "Connected to " << pointIdList->GetId(1) << endl;
-            connectedVertices->InsertNextId(pointIdList->GetId(1));
-        }
-        */
-
-        for(vtkIdType j = 0; j < pointIdList->GetNumberOfIds(); j++)
-        {
-            if(pointIdList->GetId(j) != id)
-            {
-                connectedVertices->InsertNextId(pointIdList->GetId(j));
-            }
-        }
-    }
-
-    return connectedVertices;
-}
 void Centerline::GetSectionIds_loop(vtkPolyData *t_colon, vtkIdType seed, vtkIdList *SectionIds,
                                vtkDoubleArray *PlaneOriginals, vtkDoubleArray *PlaneNormals)
 {

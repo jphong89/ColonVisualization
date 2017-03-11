@@ -117,7 +117,6 @@ public:
                        vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals, vtkDoubleArray* Curvatures);
     void GetSectionIds_loop_v2(vtkPolyData* t_colon, vtkIdType seed, vtkIdList* SectionIds,
                        vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals, vtkPolyDataGroup* CircleGroup);
-    vtkSmartPointer<vtkIdList> GetConnectedVertices(vtkSmartPointer<vtkPolyData> mesh, vtkIdType id);
     vtkSmartPointer<vtkIntArray> GetSectionHeadAndTail(vtkSmartPointer<vtkDoubleArray> Curvatures, double thres);
 };
 
