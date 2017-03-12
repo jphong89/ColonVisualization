@@ -3,7 +3,10 @@
 
 #include "centerline.h"
 #include <Eigen/Sparse>
+#include <unsupported/Eigen/IterativeSolvers>
 #include <vtkExtractEdges.h>
+#include <vector>
+#include <omp.h>
 
 #define REGWEIGHT 1
 #define BENDWEIGHT 1
@@ -11,7 +14,7 @@
 typedef Eigen::SparseMatrix<double> SpMat;
 typedef Eigen::Triplet<double> T;
 
-void constructA(std::map<int, double> &coefficientMap,
+void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                 vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp,
                 bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids,int* InvertIds);
 void constructb(int idx, double *b,
@@ -19,7 +22,7 @@ void constructb(int idx, double *b,
 
 vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp, bool *Is_Fixed);
 
-void updateA(int m, int i1, int i2, double weight,std::map<int, double> &coefficientMap);
+void updateA(int m, int i1, int i2, double weight, std::map<vtkIdType, double> &coefficientMap);
 
 vtkSmartPointer<vtkIdList> GetFacetsOfEdge(vtkSmartPointer<vtkPolyData> mesh, int idx1, int idx2);
 

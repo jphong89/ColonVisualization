@@ -27,41 +27,86 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
 
     int m = Ids->GetNumberOfIds() * 3;
     std::cout<<"total number of variables = "<<m<<endl;
-    std::map<int, double> coefficientMap;
+    std::map<vtkIdType, double> coefficientMap;
     coefficientMap.clear();
 
-    constructA(coefficientMap, t_colon, SurfaceLineUp, Is_Fixed, Ids, InvertIds);
+    double* b_c = (double *)malloc(m*sizeof(double));
+    memset(b_c, 0, sizeof(double)*m);
 
+    constructAandb(coefficientMap, b_c, t_colon, SurfaceLineUp, Is_Fixed, Ids, InvertIds);
+
+    // transform coefficientMap into a data structure that eigen recognizes
+    std::vector<T> coefficients;
+    coefficients.clear();
+    for(std::map<vtkIdType, double>::iterator it = coefficientMap.begin(); it!=coefficientMap.end(); it++)
+    {
+        int idx1 = (vtkIdType)it->first % (vtkIdType)m;
+        int idx2 = floor((double(it->first) + 0.01) / m);
+
+        coefficients.push_back(T(idx1, idx2, it->second));
+        //if(idx1 == 51242 || idx2 == 51242)
+        std::cout<<it->first<<" "<<idx1<<" "<<idx2<<" "<<it->second<<"- "<<m<<endl;
+    }
+    SpMat A(m,m);
+    A.setFromTriplets(coefficients.begin(), coefficients.end());
+
+    Eigen::VectorXd b(m);
+    b.setZero();
+    for(int k = 0; k < m; k++)
+    {
+        b(k) = b_c[k];
+    }
+
+    Eigen::SimplicialCholesky<SpMat> chol(A);
+    Eigen::VectorXd solved_x = chol.solve(b);
+
+    for(int k = 0; k < m; k++)
+    {
+        double x;
+        x = solved_x(k);
+        std::cout<<x<<endl;
+    }
+
+    free(b_c);
     free(InvertIds);
     return OptimizedSurface;
 }
 
-void updateA(int m, int i1, int i2, double weight,std::map<int, double> &coefficientMap)
+void updateA(int m, int i1, int i2, double weight,std::map<vtkIdType, double> &coefficientMap)
 {
-    std::map<int, double>::iterator iter;
-    int k = (i1*3) + (i2*3) * m;
+    m = (vtkIdType)m;
+    i1 = (vtkIdType)i1;
+    i2 = (vtkIdType)i2;
+    //if(i1 == 17080 && i2 == 17080)
+    //std::cout<<"updatea "<<i1<<"-"<<i2<<endl;
+    std::map<vtkIdType, double>::iterator iter;
+    vtkIdType k = (i1*(vtkIdType)3) + (i2*(vtkIdType)3) * m;
+    //std::cout<<k<<" ";
 
     iter = coefficientMap.find(k);
     if (iter == coefficientMap.end()){
-        coefficientMap.insert(std::pair<int,double>(k,weight));
+        coefficientMap.insert(std::pair<vtkIdType,double>(k,weight));
     }else{
         coefficientMap[k] = iter->second + weight;
     }
 
-    k = (i1*3+1) + (i2*3+1) * m;
+    k = (i1*(vtkIdType)3+(vtkIdType)1) + (i2*(vtkIdType)3+(vtkIdType)1) * m;
+    //std::cout<<k<<" ";
 
     iter = coefficientMap.find(k);
     if (iter == coefficientMap.end()){
-        coefficientMap.insert(std::pair<int,double>(k,weight));
+        coefficientMap.insert(std::pair<vtkIdType,double>(k,weight));
     }else{
         coefficientMap[k] = iter->second + weight;
     }
 
-    k = (i1*3+2) + (i2*3+2) * m;
+    k = (i1*(vtkIdType)3+(vtkIdType)2) + (i2*(vtkIdType)3+(vtkIdType)2) * m;
+    //if(i1 == 17080 && i2 == 17080)
+    //std::cout<<k<<"- "<<i1*(vtkIdType)3+(vtkIdType)2<<" "<<i2*(vtkIdType)+(vtkIdType)2<<endl;
 
     iter = coefficientMap.find(k);
     if (iter == coefficientMap.end()){
-        coefficientMap.insert(std::pair<int,double>(k,weight));
+        coefficientMap.insert(std::pair<vtkIdType,double>(k,weight));
     }else{
         coefficientMap[k] = iter->second + weight;
     }
@@ -109,20 +154,23 @@ double ComputeStretchWeight(vtkSmartPointer<vtkPolyData> t_colon, int idx1, int 
     t_colon->GetPoint(idx1, p1);
     t_colon->GetPoint(idx2, p2);
     double l = sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
-    std::cout<<list->GetNumberOfIds()<<" - "<<area<<" "<<l<<endl;
+    //std::cout<<list->GetNumberOfIds()<<" - "<<area<<" "<<l<<endl;
     return area / l / l;
 }
 
-void constructA(std::map<int, double> &coefficientMap,
+void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                 vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp,
                 bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids, int* InvertIds)
 {
     int m = Ids->GetNumberOfIds() * 3;
-    // stretch
 
+    // stretch
     // extract the edges
     bool * marked = (bool*)malloc(t_colon->GetNumberOfPoints()*sizeof(bool));
     memset(marked, 0, t_colon->GetNumberOfPoints()*sizeof(bool));
+    bool * boundary = (bool*)malloc(t_colon->GetNumberOfPoints()*sizeof(bool));
+    memset(boundary, 0, t_colon->GetNumberOfPoints()*sizeof(bool));
+
     vtkSmartPointer<vtkIntArray> lines = vtkSmartPointer<vtkIntArray>::New();
     lines->SetNumberOfComponents(2);
     for(int i=0; i<t_colon->GetNumberOfPoints(); i++)
@@ -153,20 +201,61 @@ void constructA(std::map<int, double> &coefficientMap,
         lines->GetTypedTuple(i, tuple);
         int idx1 = tuple[0];
         int idx2 = tuple[1];
-        if(!Is_Fixed[idx1] && !Is_Fixed[idx2])
+        //std::cout<<InvertIds[idx1]<<" "<<InvertIds[idx2]<<endl;
+        if(GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds() == 1)
+        {
+            boundary[idx1] = true;
+            boundary[idx2] = true;
+        }
+
+        if(!Is_Fixed[idx1] && !Is_Fixed[idx2]) // if the two points are all flexible, we only need to update A
         {
             int vidx1 = InvertIds[idx1];
             int vidx2 = InvertIds[idx2];
+            //std::cout<<m<<" "<<vidx1<<" "<<vidx2<<endl;
             assert(vidx1 >= -0.5 && vidx2 >= -0.5);
-            std::cout<<vidx1<<","<<vidx2<<" - "<<idx1<<","<<idx2<<endl;
+            //std::cout<<vidx1<<","<<vidx2<<" - "<<idx1<<","<<idx2<<endl;
             double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
-            std::cout<<"stretch weight = "<<stretchWeight<<endl;
+            //std::cout<<"stretch weight = "<<stretchWeight<<endl;
             double weight = REGWEIGHT * 2 * stretchWeight * 2;
             updateA(m, vidx1, vidx1, weight, coefficientMap);
             updateA(m, vidx2, vidx2, weight, coefficientMap);
             updateA(m, vidx1, vidx2, -weight, coefficientMap);
             updateA(m, vidx2, vidx1, -weight, coefficientMap);
         }
+        else if(!Is_Fixed[idx1]) // if one point is fixed, we need to update A for the flexible point and add a linear term in b
+        {
+            int vidx1 = InvertIds[idx1];
+            //std::cout<<m<<" "<<vidx1<<endl;
+            assert(vidx1 > -0.5);
+            double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
+            double weight = REGWEIGHT * 2 * stretchWeight * 2;
+            updateA(m, vidx1, vidx1, weight, coefficientMap);
+            double v[3], pold[3], pnew[3];
+            t_colon->GetPoint(idx2, pold);
+            SurfaceLineUp->GetPoint(idx2, pnew);
+            vtkMath::Subtract(pnew, pold, v);
+            b[vidx1*3] +=   -2 * v[0] * weight;
+            b[vidx1*3+1] += -2 * v[1] * weight;
+            b[vidx1*3+2] += -2 * v[2] * weight;
+        }
+        else if(!Is_Fixed[idx2])
+        {
+            int vidx2 = InvertIds[idx2];
+            //std::cout<<m<<" "<<vidx2<<endl;
+            assert(vidx2 > -0.5);
+            double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
+            double weight = REGWEIGHT * 2 * stretchWeight * 2;
+            updateA(m, vidx2, vidx2, weight, coefficientMap);
+            double v[3], pold[3], pnew[3];
+            t_colon->GetPoint(idx1, pold);
+            SurfaceLineUp->GetPoint(idx1, pnew);
+            vtkMath::Subtract(pnew, pold, v);
+            b[vidx2*3] +=   -2 * v[0] * weight;
+            b[vidx2*3+1] += -2 * v[1] * weight;
+            b[vidx2*3+2] += -2 * v[2] * weight;
+        }
+
     }
 
     // bend
@@ -186,11 +275,14 @@ void constructA(std::map<int, double> &coefficientMap,
 
     for(int i = 0; i < Ids->GetNumberOfIds(); i++)
     {
-
         int idx1 = Ids->GetId(i);
+        assert(!Is_Fixed[idx1]);
+        if(boundary[idx1]) // don't process boundary edges
+            continue;
 
-        std::cout<<i<<" - "<<idx1<<endl;
+        //std::cout<<i<<" - "<<idx1<<endl;
         double weight = 2* BENDWEIGHT / (SurroundAreas->GetValue(idx1) * SurroundAreas->GetValue(idx1));
+        //double weight = 2* BENDWEIGHT / (SurroundAreas->GetValue(idx1)/2);
         double center_weight = 0;
         vtkSmartPointer<vtkIdList> neighbours = vtkSmartPointer<vtkIdList>::New();
         neighbours = GetConnectedVertices(t_colon, idx1);
@@ -202,10 +294,10 @@ void constructA(std::map<int, double> &coefficientMap,
             // compute the weight[j] for the j-th neighbour
             vtkSmartPointer<vtkIdList> cellids = vtkSmartPointer<vtkIdList>::New();
             cellids = GetFacetsOfEdge(t_colon, idx1, idx2);
-            if(cellids->GetNumberOfIds() == 2)
+            assert(cellids->GetNumberOfIds() == 2); // we have already excluded the boundary edges, so this edge must be inside the surface
+
+            for(int k = 0; k < 2; k++)
             {
-                for(int k=0; k < 2; k++)
-                {
                 int idx12;
                 vtkSmartPointer<vtkIdList> ptids1 = vtkSmartPointer<vtkIdList>::New();
                 t_colon->GetCellPoints(cellids->GetId(0), ptids1);
@@ -225,14 +317,15 @@ void constructA(std::map<int, double> &coefficientMap,
                 vtkMath::Subtract(p1, p12, v1);
                 vtkMath::Subtract(p2, p12, v2);
                 double angle = vtkMath::AngleBetweenVectors(v1, v2);
-                neighbor_weight += 1/tan(angle);
-                }
+
+                neighbor_weight += cos(angle)/sin(angle);
             }
-            std::cout<<idx2<<" "<<neighbor_weight<<" | ";
+            neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
+            //std::cout<<idx2<<" "<<neighbor_weight<<" | ";
             center_weight += neighbor_weight;
             neighbor_weights->InsertNextValue(neighbor_weight);
         }
-        std::cout<<endl;
+        //std::cout<<endl;
         int vidx1 = InvertIds[idx1];
         updateA(m, vidx1, vidx1, weight* center_weight * center_weight, coefficientMap);
 
@@ -240,8 +333,36 @@ void constructA(std::map<int, double> &coefficientMap,
         {
             int idx2 = neighbours->GetId(j);
             int vidx2 = InvertIds[idx2];
-            updateA(m, vidx1, vidx2, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
-            updateA(m, vidx2, vidx1, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
+            if(!Is_Fixed[idx2])
+            {
+                updateA(m, vidx1, vidx2, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
+                updateA(m, vidx2, vidx1, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
+            }
+            else
+            {
+                double v[3], pold[3], pnew[3];
+                t_colon->GetPoint(idx2, pold);
+                SurfaceLineUp->GetPoint(idx2, pnew);
+                vtkMath::Subtract(pold, pnew, v);
+
+                // update the b of idx1
+                b[vidx1*3] += -2 * center_weight * neighbor_weights->GetValue(j) * v[0];
+                b[vidx1*3+1] += -2 * center_weight * neighbor_weights->GetValue(j) * v[1];
+                b[vidx1*3+2] += -2 * center_weight * neighbor_weights->GetValue(j) * v[2];
+
+                for(int k = 0; k < neighbours->GetNumberOfIds(); k++)
+                {
+                    int currentidx = neighbours->GetId(k);
+                    if(!Is_Fixed[currentidx])
+                    {
+                        int currentvidx = InvertIds[currentidx];
+                        assert(currentvidx > -0.5);
+                        b[currentvidx*3] = 2 * neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[0];
+                        b[currentvidx*3+1] = 2 * neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[1];
+                        b[currentvidx*3+2] = 2 * neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[2];
+                    }
+                }
+            }
         }
         for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
         {
@@ -251,12 +372,14 @@ void constructA(std::map<int, double> &coefficientMap,
                 int idx2 = neighbours->GetId(k);
                 int vidx1 = InvertIds[idx1];
                 int vidx2 = InvertIds[idx2];
-                updateA(m, vidx1, vidx2, weight*neighbor_weights->GetValue(j)*neighbor_weights->GetValue(k), coefficientMap);
+                if(!Is_Fixed[idx1] && !Is_Fixed[idx2])
+                    updateA(m, vidx1, vidx2, weight*neighbor_weights->GetValue(j)*neighbor_weights->GetValue(k), coefficientMap);
             }
         }
     }
 
     free(marked);
+    free(boundary);
 }
 
 void constructb(int idx, double *b,
