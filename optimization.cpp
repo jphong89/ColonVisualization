@@ -45,7 +45,7 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
 
         coefficients.push_back(T(idx1, idx2, it->second));
         //if(idx1 == 51242 || idx2 == 51242)
-        std::cout<<it->first<<" "<<idx1<<" "<<idx2<<" "<<it->second<<"- "<<m<<endl;
+        //std::cout<<it->first<<" "<<idx1<<" "<<idx2<<" "<<it->second<<endl;
     }
     SpMat A(m,m);
     A.setFromTriplets(coefficients.begin(), coefficients.end());
@@ -60,12 +60,21 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
     Eigen::SimplicialCholesky<SpMat> chol(A);
     Eigen::VectorXd solved_x = chol.solve(b);
 
-    for(int k = 0; k < m; k++)
+    vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+    newpoints = SurfaceLineUp->GetPoints();
+    for(int vidx = 0; vidx < Ids->GetNumberOfIds(); vidx++)
     {
-        double x;
-        x = solved_x(k);
-        std::cout<<x<<endl;
+        double v[3], pold[3], pnew[3];
+        int idx = Ids->GetId(vidx);
+        t_colon->GetPoint(idx, pold);
+        v[0] = solved_x(vidx*3);
+        v[1] = solved_x(vidx*3+1);
+        v[2] = solved_x(vidx*3+2);
+        //std::cout<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
+        vtkMath::Add(pold, v, pnew);
+        newpoints->SetPoint(idx, pnew);
     }
+    OptimizedSurface->SetPoints(newpoints);
 
     free(b_c);
     free(InvertIds);
@@ -175,6 +184,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
     lines->SetNumberOfComponents(2);
     for(int i=0; i<t_colon->GetNumberOfPoints(); i++)
     {
+        vtkSmartPointer<vtkIdList> linkedpts = vtkSmartPointer<vtkIdList>::New();
         vtkSmartPointer<vtkIdList> cellids = vtkSmartPointer<vtkIdList>::New();
         t_colon->GetPointCells(i, cellids);
         for(int j=0; j<cellids->GetNumberOfIds(); j++)
@@ -184,12 +194,25 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             assert(ptids->GetNumberOfIds() <= 3);
             for(int k = 0; k < ptids->GetNumberOfIds(); k++)
             {
+                bool linked = false;
                 int ptid = ptids->GetId(k);
                 if(ptid == i || marked[ptid])
+                    continue;
+                for(int l = 0; l < linkedpts->GetNumberOfIds(); l++)
+                {
+                    if(linkedpts->GetId(l) == ptid)
+                    {
+                        linked = true;
+                        break;
+                    }
+                }
+                if(linked)
                     continue;
                 int tuple[2];
                 tuple[0] = i;
                 tuple[1] = ptid;
+                //std::cout<<i<<" "<<ptid<<endl;
+                linkedpts->InsertNextId(ptid);
                 lines->InsertNextTypedTuple(tuple);
             }
         }
@@ -217,7 +240,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             //std::cout<<vidx1<<","<<vidx2<<" - "<<idx1<<","<<idx2<<endl;
             double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
             //std::cout<<"stretch weight = "<<stretchWeight<<endl;
-            double weight = REGWEIGHT * 2 * stretchWeight * 2;
+            double weight = REGWEIGHT * stretchWeight * 4;
             updateA(m, vidx1, vidx1, weight, coefficientMap);
             updateA(m, vidx2, vidx2, weight, coefficientMap);
             updateA(m, vidx1, vidx2, -weight, coefficientMap);
@@ -229,15 +252,15 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             //std::cout<<m<<" "<<vidx1<<endl;
             assert(vidx1 > -0.5);
             double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
-            double weight = REGWEIGHT * 2 * stretchWeight * 2;
+            double weight = REGWEIGHT * stretchWeight *4;
             updateA(m, vidx1, vidx1, weight, coefficientMap);
             double v[3], pold[3], pnew[3];
             t_colon->GetPoint(idx2, pold);
             SurfaceLineUp->GetPoint(idx2, pnew);
             vtkMath::Subtract(pnew, pold, v);
-            b[vidx1*3] +=   -2 * v[0] * weight;
-            b[vidx1*3+1] += -2 * v[1] * weight;
-            b[vidx1*3+2] += -2 * v[2] * weight;
+            b[vidx1*3] +=   2 * v[0] * weight/2;
+            b[vidx1*3+1] += 2 * v[1] * weight/2;
+            b[vidx1*3+2] += 2 * v[2] * weight/2;
         }
         else if(!Is_Fixed[idx2])
         {
@@ -245,15 +268,15 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             //std::cout<<m<<" "<<vidx2<<endl;
             assert(vidx2 > -0.5);
             double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
-            double weight = REGWEIGHT * 2 * stretchWeight * 2;
+            double weight = REGWEIGHT * stretchWeight * 4;
             updateA(m, vidx2, vidx2, weight, coefficientMap);
             double v[3], pold[3], pnew[3];
             t_colon->GetPoint(idx1, pold);
             SurfaceLineUp->GetPoint(idx1, pnew);
             vtkMath::Subtract(pnew, pold, v);
-            b[vidx2*3] +=   -2 * v[0] * weight;
-            b[vidx2*3+1] += -2 * v[1] * weight;
-            b[vidx2*3+2] += -2 * v[2] * weight;
+            b[vidx2*3] +=   2 * v[0] * weight/2;
+            b[vidx2*3+1] += 2 * v[1] * weight/2;
+            b[vidx2*3+2] += 2 * v[2] * weight/2;
         }
 
     }
@@ -273,120 +296,238 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         SurroundAreas->InsertNextValue(surroundarea);
     }
 
-    for(int i = 0; i < Ids->GetNumberOfIds(); i++)
+    for(int i = 0; i < t_colon->GetNumberOfPoints(); i++)
     {
-        int idx1 = Ids->GetId(i);
-        assert(!Is_Fixed[idx1]);
+        int idx1 = i;
         if(boundary[idx1]) // don't process boundary edges
             continue;
-
-        //std::cout<<i<<" - "<<idx1<<endl;
-        double weight = 2* BENDWEIGHT / (SurroundAreas->GetValue(idx1) * SurroundAreas->GetValue(idx1));
-        //double weight = 2* BENDWEIGHT / (SurroundAreas->GetValue(idx1)/2);
-        double center_weight = 0;
-        vtkSmartPointer<vtkIdList> neighbours = vtkSmartPointer<vtkIdList>::New();
-        neighbours = GetConnectedVertices(t_colon, idx1);
-        vtkSmartPointer<vtkDoubleArray> neighbor_weights = vtkSmartPointer<vtkDoubleArray>::New();
-        for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
+        if(!Is_Fixed[idx1])
         {
-            int idx2 = neighbours->GetId(j);
-            double neighbor_weight = 0;
-            // compute the weight[j] for the j-th neighbour
-            vtkSmartPointer<vtkIdList> cellids = vtkSmartPointer<vtkIdList>::New();
-            cellids = GetFacetsOfEdge(t_colon, idx1, idx2);
-            assert(cellids->GetNumberOfIds() == 2); // we have already excluded the boundary edges, so this edge must be inside the surface
-
-            for(int k = 0; k < 2; k++)
+            //std::cout<<i<<" - "<<idx1<<endl;
+            //double weight = 2* BENDWEIGHT / (SurroundAreas->GetValue(idx1) * SurroundAreas->GetValue(idx1));
+            double weight = BENDWEIGHT / (SurroundAreas->GetValue(idx1));
+            //std::cout<<"bend weight "<<weight<<endl;
+            //weight = 1;
+            double center_weight = 0;
+            vtkSmartPointer<vtkIdList> neighbours = vtkSmartPointer<vtkIdList>::New();
+            neighbours = GetConnectedVertices(t_colon, idx1);
+            //if(neighbours->GetNumberOfIds() <= 3)
+            //std::cout<<"neighbours:"<<neighbours->GetNumberOfIds()<<endl;
+            vtkSmartPointer<vtkDoubleArray> neighbor_weights = vtkSmartPointer<vtkDoubleArray>::New();
+            for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
             {
-                int idx12;
-                vtkSmartPointer<vtkIdList> ptids1 = vtkSmartPointer<vtkIdList>::New();
-                t_colon->GetCellPoints(cellids->GetId(0), ptids1);
-                for(int k = 0; k < ptids1->GetNumberOfIds(); k++)
+                int idx2 = neighbours->GetId(j);
+                double neighbor_weight = 0;
+                // compute the weight[j] for the j-th neighbour
+                vtkSmartPointer<vtkIdList> cellids = vtkSmartPointer<vtkIdList>::New();
+                cellids = GetFacetsOfEdge(t_colon, idx1, idx2);
+                assert(cellids->GetNumberOfIds() == 2); // we have already excluded the boundary edges, so this edge must be inside the surface
+
+                for(int k = 0; k < 2; k++)
                 {
-                    if(ptids1->GetId(k)!=idx1 && ptids1->GetId(k)!=idx2)
+                    int idx12;
+                    vtkSmartPointer<vtkIdList> ptids = vtkSmartPointer<vtkIdList>::New();
+                    t_colon->GetCellPoints(cellids->GetId(k), ptids);
+                    for(int l = 0; l < ptids->GetNumberOfIds(); l++)
                     {
-                        idx12 = ptids1->GetId(k);
-                        break;
+                        if(ptids->GetId(l)!=idx1 && ptids->GetId(l)!=idx2)
+                        {
+                            idx12 = ptids->GetId(l);
+                            break;
+                        }
+                    }
+
+                    double p1[3], p2[3], p12[3];
+                    t_colon->GetPoint(idx1, p1);
+                    t_colon->GetPoint(idx2, p2);
+                    t_colon->GetPoint(idx12, p12);
+                    double v1[3], v2[3];
+                    vtkMath::Subtract(p1, p12, v1);
+                    vtkMath::Subtract(p2, p12, v2);
+                    double angle = vtkMath::AngleBetweenVectors(v1, v2);
+
+                    neighbor_weight += cos(angle)/sin(angle);
+                    //std::cout<<idx1<<" "<<idx2<<" "<<idx12<<" : "<<cos(angle)/sin(angle)<<endl;
+                }
+                neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
+                //neighbor_weight = 1;
+                //std::cout<<idx2<<" "<<neighbor_weight<<" | ";
+                center_weight += neighbor_weight;
+                neighbor_weights->InsertNextValue(neighbor_weight);
+            }
+            //std::cout<<center_weight<<endl;
+            int vidx1 = InvertIds[idx1];
+            updateA(m, vidx1, vidx1, weight* center_weight * center_weight, coefficientMap);
+            //std::cout<<vidx1<<" "<<vidx1<<" "<<weight* center_weight * center_weight<<endl;
+
+            for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
+            {
+                int idx2 = neighbours->GetId(j);
+                assert(idx2!=idx1);
+                int vidx2 = InvertIds[idx2];
+                if(!Is_Fixed[idx2])
+                {
+                    updateA(m, vidx1, vidx2, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
+                    //std::cout<<vidx1<<" "<<vidx2<<" "<<-weight*center_weight*neighbor_weights->GetValue(j)<<endl;
+                    updateA(m, vidx2, vidx1, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
+                    //std::cout<<vidx2<<" "<<vidx1<<" "<<-weight*center_weight*neighbor_weights->GetValue(j)<<endl;
+                }
+                else
+                {
+                    double v[3], pold[3], pnew[3];
+                    t_colon->GetPoint(idx2, pold);
+                    SurfaceLineUp->GetPoint(idx2, pnew);
+                    vtkMath::Subtract(pnew, pold, v);
+
+                    // update the b of idx1
+                    b[vidx1*3] += 2 * weight/2* center_weight * neighbor_weights->GetValue(j) * v[0];
+                    b[vidx1*3+1] += 2 * weight/2 * center_weight * neighbor_weights->GetValue(j) * v[1];
+                    b[vidx1*3+2] += 2 * weight/2 * center_weight * neighbor_weights->GetValue(j) * v[2];
+                    //std::cout<<vidx1<<" "<<2 * weight/2* center_weight * neighbor_weights->GetValue(j)<<endl;
+
+                    for(int k = 0; k < neighbours->GetNumberOfIds(); k++)
+                    {
+                        int currentidx = neighbours->GetId(k);
+                        if(!Is_Fixed[currentidx])
+                        {
+                            int currentvidx = InvertIds[currentidx];
+                            assert(currentvidx > -0.5);
+                            b[currentvidx*3] += -2 * weight/2* neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[0];
+                            b[currentvidx*3+1] += -2 * weight/2* neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[1];
+                            b[currentvidx*3+2] += -2 * weight/2* neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[2];
+                            //std::cout<<currentvidx<<" "<<2 * weight/2* center_weight * neighbor_weights->GetValue(j)<<endl;
+                        }
                     }
                 }
-                double p1[3], p2[3], p12[3];
-                t_colon->GetPoint(idx1, p1);
-                t_colon->GetPoint(idx2, p2);
-                t_colon->GetPoint(idx12, p12);
-                double v1[3], v2[3];
-                vtkMath::Subtract(p1, p12, v1);
-                vtkMath::Subtract(p2, p12, v2);
-                double angle = vtkMath::AngleBetweenVectors(v1, v2);
-
-                neighbor_weight += cos(angle)/sin(angle);
             }
-            neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
-            //std::cout<<idx2<<" "<<neighbor_weight<<" | ";
-            center_weight += neighbor_weight;
-            neighbor_weights->InsertNextValue(neighbor_weight);
-        }
-        //std::cout<<endl;
-        int vidx1 = InvertIds[idx1];
-        updateA(m, vidx1, vidx1, weight* center_weight * center_weight, coefficientMap);
-
-        for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
-        {
-            int idx2 = neighbours->GetId(j);
-            int vidx2 = InvertIds[idx2];
-            if(!Is_Fixed[idx2])
+            for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
             {
-                updateA(m, vidx1, vidx2, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
-                updateA(m, vidx2, vidx1, -weight*center_weight*neighbor_weights->GetValue(j), coefficientMap);
-            }
-            else
-            {
-                double v[3], pold[3], pnew[3];
-                t_colon->GetPoint(idx2, pold);
-                SurfaceLineUp->GetPoint(idx2, pnew);
-                vtkMath::Subtract(pold, pnew, v);
-
-                // update the b of idx1
-                b[vidx1*3] += -2 * center_weight * neighbor_weights->GetValue(j) * v[0];
-                b[vidx1*3+1] += -2 * center_weight * neighbor_weights->GetValue(j) * v[1];
-                b[vidx1*3+2] += -2 * center_weight * neighbor_weights->GetValue(j) * v[2];
-
                 for(int k = 0; k < neighbours->GetNumberOfIds(); k++)
                 {
-                    int currentidx = neighbours->GetId(k);
-                    if(!Is_Fixed[currentidx])
+                    int idx1_ = neighbours->GetId(j);
+                    int idx2_ = neighbours->GetId(k);
+                    int vidx1_ = InvertIds[idx1_];
+                    int vidx2_ = InvertIds[idx2_];
+                    if(!Is_Fixed[idx1_] && !Is_Fixed[idx2_])
                     {
-                        int currentvidx = InvertIds[currentidx];
-                        assert(currentvidx > -0.5);
-                        b[currentvidx*3] = 2 * neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[0];
-                        b[currentvidx*3+1] = 2 * neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[1];
-                        b[currentvidx*3+2] = 2 * neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[2];
+                        updateA(m, vidx1_, vidx2_, weight*neighbor_weights->GetValue(j)*neighbor_weights->GetValue(k), coefficientMap);
+                        //std::cout<<vidx1_<<" "<<vidx2_<<" "<<weight*neighbor_weights->GetValue(j)*neighbor_weights->GetValue(k)<<endl;
                     }
                 }
             }
         }
-        for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
+        else
         {
-            for(int k = 0; k < neighbours->GetNumberOfIds(); k++)
+            vtkSmartPointer<vtkIdList> neighbours = vtkSmartPointer<vtkIdList>::New();
+            neighbours = GetConnectedVertices(t_colon, idx1);
+            vtkSmartPointer<vtkIdList> variable_neighbours = vtkSmartPointer<vtkIdList>::New();
+            double weight = BENDWEIGHT / (SurroundAreas->GetValue(idx1));
+            for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
             {
-                int idx1 = neighbours->GetId(j);
-                int idx2 = neighbours->GetId(k);
-                int vidx1 = InvertIds[idx1];
-                int vidx2 = InvertIds[idx2];
-                if(!Is_Fixed[idx1] && !Is_Fixed[idx2])
-                    updateA(m, vidx1, vidx2, weight*neighbor_weights->GetValue(j)*neighbor_weights->GetValue(k), coefficientMap);
+                int currentidx = neighbours->GetId(j);
+                if(!Is_Fixed[currentidx])
+                    variable_neighbours->InsertNextId(currentidx);
+            }
+            if(variable_neighbours->GetNumberOfIds() != 0)
+            {
+                double center_weight = 0;
+                vtkSmartPointer<vtkDoubleArray> neighbor_weights = vtkSmartPointer<vtkDoubleArray>::New();
+                for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
+                {
+                    int idx2 = neighbours->GetId(j);
+                    double neighbor_weight = 0;
+                    // compute the weight[j] for the j-th neighbour
+                    vtkSmartPointer<vtkIdList> cellids = vtkSmartPointer<vtkIdList>::New();
+                    cellids = GetFacetsOfEdge(t_colon, idx1, idx2);
+                    assert(cellids->GetNumberOfIds() == 2); // we have already excluded the boundary edges, so this edge must be inside the surface
+
+                    for(int k = 0; k < 2; k++)
+                    {
+                        int idx12;
+                        vtkSmartPointer<vtkIdList> ptids = vtkSmartPointer<vtkIdList>::New();
+                        t_colon->GetCellPoints(cellids->GetId(k), ptids);
+                        for(int l = 0; l < ptids->GetNumberOfIds(); l++)
+                        {
+                            if(ptids->GetId(l)!=idx1 && ptids->GetId(l)!=idx2)
+                            {
+                                idx12 = ptids->GetId(l);
+                                break;
+                            }
+                        }
+
+                        double p1[3], p2[3], p12[3];
+                        t_colon->GetPoint(idx1, p1);
+                        t_colon->GetPoint(idx2, p2);
+                        t_colon->GetPoint(idx12, p12);
+                        double v1[3], v2[3];
+                        vtkMath::Subtract(p1, p12, v1);
+                        vtkMath::Subtract(p2, p12, v2);
+                        double angle = vtkMath::AngleBetweenVectors(v1, v2);
+
+                        neighbor_weight += cos(angle)/sin(angle);
+                        //std::cout<<idx1<<" "<<idx2<<" "<<idx12<<" : "<<cos(angle)/sin(angle)<<endl;
+                    }
+                    neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
+                    //neighbor_weight = 1;
+                    //std::cout<<idx2<<" "<<neighbor_weight<<" | ";
+                    center_weight += neighbor_weight;
+                    neighbor_weights->InsertNextValue(neighbor_weight);
+                }
+
+                for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
+                {
+                    for(int k = 0; k < neighbours->GetNumberOfIds(); k++)
+                    {
+                        int idx1_ = neighbours->GetId(j);
+                        int idx2_ = neighbours->GetId(k);
+                        if(!Is_Fixed[idx1_] && !Is_Fixed[idx2_])
+                        {
+                            int vidx1_ = InvertIds[idx1_];
+                            int vidx2_ = InvertIds[idx2_];
+                            updateA(m, vidx1_, vidx2_, weight*neighbor_weights->GetValue(j)*neighbor_weights->GetValue(k), coefficientMap);
+                        }
+                    }
+                }
+
+                for(int j = 0; j < neighbours->GetNumberOfIds(); j++)
+                {
+                    int idx2 = neighbours->GetId(j);
+                    if(!Is_Fixed[idx2])
+                    {
+                        double pnew[3], pold[3], v[3];
+                        t_colon->GetPoint(idx1, pold);
+                        SurfaceLineUp->GetPoint(idx1, pnew);
+                        vtkMath::Subtract(pnew, pold, v);
+                        int vidx2 = InvertIds[idx2];
+                        b[vidx2*3] += 2*weight/2 *center_weight*neighbor_weights->GetValue(j) * v[0];
+                        b[vidx2*3+1] += 2*weight/2 *center_weight*neighbor_weights->GetValue(j) * v[1];
+                        b[vidx2*3+2] += 2*weight/2 *center_weight*neighbor_weights->GetValue(j) * v[2];
+                    }
+                    else
+                    {
+                        for(int k = 0; k < neighbours->GetNumberOfIds(); k++)
+                        {
+                            int currentidx = neighbours->GetId(k);
+                            if(!Is_Fixed[currentidx])
+                            {
+                                double pnew[3], pold[3], v[3];
+                                t_colon->GetPoint(idx2, pold);
+                                SurfaceLineUp->GetPoint(idx2, pnew);
+                                vtkMath::Subtract(pnew, pold, v);
+                                int currentvidx = InvertIds[currentidx];
+                                b[currentvidx*3] += -2*weight/2 *neighbor_weights->GetValue(j) *neighbor_weights->GetValue(k) * v[0];
+                                b[currentvidx*3+1] += -2*weight/2 *neighbor_weights->GetValue(j) *neighbor_weights->GetValue(k) * v[1];
+                                b[currentvidx*3+2] += -2*weight/2 *neighbor_weights->GetValue(j) *neighbor_weights->GetValue(k) * v[2];
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     free(marked);
     free(boundary);
-}
-
-void constructb(int idx, double *b,
-                vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp,
-                bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids)
-{
-
 }
 
 vtkSmartPointer<vtkIdList> GetConnectedVertices(vtkSmartPointer<vtkPolyData> mesh, vtkIdType id)

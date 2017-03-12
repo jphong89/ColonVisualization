@@ -8,8 +8,8 @@
 #include <vector>
 #include <omp.h>
 
-#define REGWEIGHT 1
-#define BENDWEIGHT 1
+#define REGWEIGHT 0.1
+#define BENDWEIGHT 100
 
 typedef Eigen::SparseMatrix<double> SpMat;
 typedef Eigen::Triplet<double> T;
@@ -17,8 +17,6 @@ typedef Eigen::Triplet<double> T;
 void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                 vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp,
                 bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids,int* InvertIds);
-void constructb(int idx, double *b,
-                vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp, bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids);
 
 vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp, bool *Is_Fixed);
 

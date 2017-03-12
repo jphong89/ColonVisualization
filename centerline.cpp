@@ -3210,7 +3210,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             points->SetPoint(sectionids->GetId(j), p);
         }
 
-        std::cout<<"section "<<i<<" "<<sectionpoly->GetNumberOfPoints()<<endl;
+        //std::cout<<"section "<<i<<" "<<sectionpoly->GetNumberOfPoints()<<endl;
     }
     SurfaceLineUp->DeepCopy(t_colon);
     SurfaceLineUp->SetPoints(points);
@@ -3220,8 +3220,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     SurfaceLineUpMapper->Update();
     vtkSmartPointer<vtkActor> SurfaceLineUpActor = vtkSmartPointer<vtkActor>::New();
     SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
-    t_rendermanager->renderModel(SurfaceLineUpActor);
-    t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v3_1.stl");
+    //t_rendermanager->renderModel(SurfaceLineUpActor);
+    //t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v3_1.stl");
 
     // output a deformation file
     pointLocator->RemoveAllObservers();
@@ -3250,6 +3250,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     file.close();
     //
     //visualize the fixed points
+    /*
     vtkSmartPointer<vtkPoints> fixedPoints = vtkSmartPointer<vtkPoints>::New();
     for(vtkIdType i = 1; i < t_colon->GetNumberOfPoints(); i++)
     {
@@ -3275,9 +3276,18 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     fixedActor->GetProperty()->SetPointSize(5);
     fixedActor->GetProperty()->SetColor(1,1,0);
     t_rendermanager->renderModel(fixedActor);
+    */
     //
     // optimization
-    Optimize(t_colon, SurfaceLineUp, Is_Fixed);
+    vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
+    OptimizedSurface = Optimize(t_colon, SurfaceLineUp, Is_Fixed);
+    vtkSmartPointer<vtkPolyDataMapper> optimizedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    optimizedMapper->SetInputData(OptimizedSurface);
+    optimizedMapper->Update();
+    vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
+    optimizedActor->SetMapper(optimizedMapper);
+    //optimizedActor->GetProperty()->SetRepresentationToWireframe();
+    t_rendermanager->renderModel(optimizedActor);
     //
 
     free(Is_Fixed);
