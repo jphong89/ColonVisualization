@@ -1447,10 +1447,17 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         double sections = ViolationTail->GetId(i) - ViolationHead->GetId(i) + 2;
         for(vtkIdType j = 1; j < sections; j++)
         {
-            double t[3];
-            t[0] = (sections - j)/sections * t1[0] + j/sections * t2[0];
-            t[1] = (sections - j)/sections * t1[1] + j/sections * t2[1];
-            t[2] = (sections - j)/sections * t1[2] + j/sections * t2[2];
+            double t[3], l, lambda1, lambda2, angle;
+            l = j/sections;
+            angle = vtkMath::AngleBetweenVectors(t1, t2);
+            lambda1 = LorentzianInterpolationFactor(1-l, angle);
+            lambda2 = LorentzianInterpolationFactor(l, angle);
+            //t[0] = (sections - j)/sections * t1[0] + j/sections * t2[0];
+            //t[1] = (sections - j)/sections * t1[1] + j/sections * t2[1];
+            //t[2] = (sections - j)/sections * t1[2] + j/sections * t2[2];
+            t[0] = lambda1 * t1[0] + lambda2 * t2[0];
+            t[1] = lambda1 * t1[1] + lambda2 * t2[1];
+            t[2] = lambda1 * t1[2] + lambda2 * t2[2];
             vtkMath::Normalize(t);
             vtkSmartPointer<vtkPlane> newplane = vtkSmartPointer<vtkPlane>::New();
             newplane->SetNormal(t);
@@ -1482,7 +1489,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         }
     }
 
-    /* // visualize the new cutcircles in yello
+    /* // visualize the new cutcircles in yellow
     vtkSmartPointer<vtkPolyDataMapper> NewCutlinesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     NewCutlinesMapper->SetInputData(NewCutlines);
     NewCutlinesMapper->Update();
@@ -1491,6 +1498,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     NewCutlinesActor->GetProperty()->SetColor(2, 1, 0);
     t_rendermanager->renderModel(NewCutlinesActor);
     */
+
 
     /*
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
@@ -3250,7 +3258,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     file.close();
     //
     //visualize the fixed points
-    /*
+
     vtkSmartPointer<vtkPoints> fixedPoints = vtkSmartPointer<vtkPoints>::New();
     for(vtkIdType i = 1; i < t_colon->GetNumberOfPoints(); i++)
     {
@@ -3276,7 +3284,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     fixedActor->GetProperty()->SetPointSize(5);
     fixedActor->GetProperty()->SetColor(1,1,0);
     t_rendermanager->renderModel(fixedActor);
-    */
+
     //
     // optimization
     vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
@@ -4998,3 +5006,12 @@ void Centerline::GetSectionIds_loop_combinehighcurvatures(vtkPolyData *t_colon, 
     } // while(1)
 }
 
+double Centerline::LorentzianInterpolationFactor(double l, double angle)
+{
+    assert(angle >= 0);
+    assert(l >= 0 && l <= 1);
+    if(angle == 0)
+        return l;
+    else
+        return sin(l * angle) / sin(angle);
+}
