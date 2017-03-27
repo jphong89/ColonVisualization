@@ -647,10 +647,20 @@ void MainWindow::on_actionLighting_triggered()
 
 void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
-    test = true;
+    test = false;
+    double factor = 3, r0 = 18.5793, adjust = 0.75;
+    double k = 0.5, b;
+    b = r0*(1-k);
+    double aver = 0;
+    double origin[3] = {667.6, 491.462, -213.051}, normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
+
     if(test)
     {
-        double f1[3] = {8.183, -4.317, 11.282}, f2[3] = {-5.445, 2.407, -3.106}, f3[3] = {3.959, -4.641, 0.886};
+        r0 = 2.79012; adjust = 0.9; b = r0*(1-k);
+        //double f1[3] = {8.183, -4.317, 11.282}, f2[3] = {-5.445, 2.407, -3.106}, f3[3] = {3.959, -4.641, 0.886};
+        //double f1[3] = {7.904, -4.674, 11.167}, f2[3] = {-5.976, 3.461, -3.272}, f3[3] = {9.324, 3.789, -0.058};
+        double f1[3] = {7.904, -4.674, 11.167}, f2[3] = {-5.976, 3.461, -3.272}, f3[3] = {-0.826, -1.501, 10.889};
+        /* // visualize the fiducial points
         vtkSmartPointer<vtkPoints> fiducials = vtkSmartPointer<vtkPoints>::New();
         fiducials->InsertNextPoint(f1);
         fiducials->InsertNextPoint(f2);
@@ -665,7 +675,9 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         fiducialsMapper->Update();
         vtkSmartPointer<vtkActor> fiducialActor = vtkSmartPointer<vtkActor>::New();
         fiducialActor->SetMapper(fiducialsMapper);
+        fiducialActor->GetProperty()->SetPointSize(5);
         m_rendermanager->renderModel(fiducialActor);
+        */
 
         double pd1[3], pd2[3], pd3[3], vpar[3], v2[3];
         double projection;
@@ -673,19 +685,43 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Normalize(pd1);
         vtkMath::Subtract(f3, f2, v2);
         projection = vtkMath::Dot(pd1, v2);
-        vpar[0] = proj * pd1[0];
-        vpar[1] = proj * pd1[1];
-        vpar[2] = proj * pd1[2];
+        vpar[0] = projection * pd1[0];
+        vpar[1] = projection * pd1[1];
+        vpar[2] = projection * pd1[2];
+        vtkMath::Subtract(v2, vpar, pd2);
 
+        //vtkMath::MultiplyScalar(pd2, -1);
 
+        vtkMath::Normalize(pd2);
+        vtkMath::Cross(pd1, pd2, pd3);
+        vtkMath::Normalize(pd3);
 
-
+        vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+        for(int i = 0; i < m_colon->GetOutput()->GetNumberOfPoints(); i++)
+        {
+            double p[3], v[3];
+            m_colon->GetOutput()->GetPoint(i, p);
+            vtkMath::Subtract(p, f2, v);
+            double x, y, z;
+            x = vtkMath::Dot(v, pd1);
+            y = vtkMath::Dot(v, pd2);
+            z = vtkMath::Dot(v, pd3);
+            double vx[3], vy[3], vz[3], temp1[3], temp2[3], newp[3];
+            vx[0] = d1[0]; vx[1] = d1[1]; vx[2] = d1[2];
+            vy[0] = d2[0]; vy[1] = d2[1]; vy[2] = d2[2];
+            vz[0] = normal[0]; vz[1] = normal[1]; vz[2] = normal[2];
+            vtkMath::MultiplyScalar(vx, x);
+            vtkMath::MultiplyScalar(vy, y);
+            vtkMath::MultiplyScalar(vz, z);
+            vtkMath::Add(origin, vx, temp1);
+            vtkMath::Add(temp1, vy, temp2);
+            vtkMath::Add(temp2, vz, newp);
+            newpoints->InsertNextPoint(newp);
+        }
+        m_colon->GetOutput()->SetPoints(newpoints);
+        m_rendermanager->renderModel(m_colon->GetActor());
     }
-    else
-    {
-    double factor = 3, r0 = 18.5793, adjust = 0.75;
-    double aver = 0;
-    double origin[3] = {667.6, 491.462, -213.051}, normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
+
     vtkSmartPointer<vtkPlane> clipPlane = vtkSmartPointer<vtkPlane>::New();
     clipPlane->SetOrigin(origin);
     clipPlane->SetNormal(normal);
@@ -707,7 +743,8 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         double y = vtkMath::Dot(d2, v);
         double r = sqrt(z*z + y*y);
         double angle = acos(y/r);
-        double newr = r * factor * exp(adjust *((r0 - r)/r0));
+        //double newr = r * factor * exp(adjust *((r0 - r)/r0));
+        double newr = factor * (r * k + b);
         double newangle = angle / factor;
 
         double newy = newr * cos(newangle);
@@ -725,7 +762,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Add(temp2, vz, newp);
         leftnewpoints->InsertNextPoint(newp);
         aver += r;
-            std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+            //std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
     }
     leftpart->SetPoints(leftnewpoints);
 
@@ -747,7 +784,8 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         double y = vtkMath::Dot(d2, v);
         double r = sqrt(z*z + y*y);
         double angle = acos(y/r);
-        double newr = r * factor * exp(adjust *((r0 - r)/r0));
+        //double newr = r * factor * exp(adjust *((r0 - r)/r0));
+        double newr = factor * (r * k + b);
         double newangle = angle / factor;
 
         double newy = newr * cos(newangle);
@@ -765,7 +803,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Add(temp2, vz, newp);
         rightnewpoints->InsertNextPoint(newp);
         aver += r;
-            std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+            //std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
     }
     rightpart->SetPoints(rightnewpoints);
     aver = aver / (leftpart->GetNumberOfPoints() + rightpart->GetNumberOfPoints());
@@ -808,7 +846,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     m_showselectedwindow.RenderSelected(selectedActor);
 
     m_filemanager->SaveFile(bended, "openedcolon.off");
-    }
+
     //m_showselectedwindow.RenderSelected(edgeActor);
     //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
 
