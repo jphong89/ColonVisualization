@@ -1155,8 +1155,6 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
         vtkSmartPointer<vtkDoubleArray> Radius = vtkSmartPointer<vtkDoubleArray>::New();
 
-
-        vtkPolyDataGroup group;
         // calculate the cut circles and curvature points
 
         for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
@@ -1338,7 +1336,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> IllCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     IllCutCirclesActor->SetMapper(IllCutCirclesMapper);
     IllCutCirclesActor->GetProperty()->SetColor(1, 0, 0);
-    //t_rendermanager->renderModel(IllCutCirclesActor);
+    t_rendermanager->renderModel(IllCutCirclesActor);
 
     // visualize the normal cut circles
     vtkSmartPointer<vtkPolyDataMapper> NormalCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -1347,7 +1345,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> NormalCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     NormalCutCirclesActor->SetMapper(NormalCutCirclesMapper);
     NormalCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
-    //t_rendermanager->renderModel(NormalCutCirclesActor);
+    t_rendermanager->renderModel(NormalCutCirclesActor);
 
     // visualize the violation points
     /*

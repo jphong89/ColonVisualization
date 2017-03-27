@@ -765,7 +765,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Add(temp2, vz, newp);
         leftnewpoints->InsertNextPoint(newp);
         aver += r;
-            std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
+            //std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
     }
     leftpart->SetPoints(leftnewpoints);
 
@@ -806,7 +806,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Add(temp2, vz, newp);
         rightnewpoints->InsertNextPoint(newp);
         aver += r;
-            std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
+            //std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
     }
     rightpart->SetPoints(rightnewpoints);
     aver = aver / (leftpart->GetNumberOfPoints() + rightpart->GetNumberOfPoints());
