@@ -647,7 +647,7 @@ void MainWindow::on_actionLighting_triggered()
 
 void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
-    test = false;
+    test = true;
     double factor = 3, r0 = 18.5793, adjust = 0.75;
     double k = 0.5, b;
     b = r0*(1-k);
@@ -660,6 +660,9 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         //double f1[3] = {8.183, -4.317, 11.282}, f2[3] = {-5.445, 2.407, -3.106}, f3[3] = {3.959, -4.641, 0.886};
         //double f1[3] = {7.904, -4.674, 11.167}, f2[3] = {-5.976, 3.461, -3.272}, f3[3] = {9.324, 3.789, -0.058};
         double f1[3] = {7.904, -4.674, 11.167}, f2[3] = {-5.976, 3.461, -3.272}, f3[3] = {-0.826, -1.501, 10.889};
+        origin[0] = f2[0];
+        origin[1] = f2[1];
+        origin[2] = f2[2];
         /* // visualize the fiducial points
         vtkSmartPointer<vtkPoints> fiducials = vtkSmartPointer<vtkPoints>::New();
         fiducials->InsertNextPoint(f1);
@@ -762,7 +765,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Add(temp2, vz, newp);
         leftnewpoints->InsertNextPoint(newp);
         aver += r;
-            //std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+            std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
     }
     leftpart->SetPoints(leftnewpoints);
 
@@ -803,7 +806,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Add(temp2, vz, newp);
         rightnewpoints->InsertNextPoint(newp);
         aver += r;
-            //std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+            std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
     }
     rightpart->SetPoints(rightnewpoints);
     aver = aver / (leftpart->GetNumberOfPoints() + rightpart->GetNumberOfPoints());
@@ -845,7 +848,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     m_showselectedwindow.show();
     m_showselectedwindow.RenderSelected(selectedActor);
 
-    m_filemanager->SaveFile(bended, "openedcolon.off");
+    m_filemanager->SaveFile(bended, "openedcolontextured.off", true);
 
     //m_showselectedwindow.RenderSelected(edgeActor);
     //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);

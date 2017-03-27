@@ -84,7 +84,7 @@ vtkSmartPointer<vtkPolyData> FileManager::readFileOFF(const char *filename)
     return output;
 }
 
-void FileManager::SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename)
+void FileManager::SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename, bool colored)
 {
     if(strstr(filename, ".vtp")!=NULL)
     {
@@ -102,33 +102,67 @@ void FileManager::SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename
     }
     else if(strstr(filename, ".off")!=NULL)
     {
-        writeFileOff(polydata, filename);
+        writeFileOff(polydata, filename, colored);
     }
 }
 
-void FileManager::writeFileOff(vtkSmartPointer<vtkPolyData> polydata, const char *filename)
+void FileManager::writeFileOff(vtkSmartPointer<vtkPolyData> polydata, const char *filename, bool colored)
 {
-    ofstream file;
-    file.open(filename);
-    file<<"OFF"<<std::endl;
-    file<<polydata->GetNumberOfPoints()<<" "<<polydata->GetNumberOfCells()<<" "<<0<<std::endl;
-    double p[3];
-    for(vtkIdType i = 0; i < polydata->GetNumberOfPoints(); i++)
+    if(colored)
     {
-        polydata->GetPoint(i, p);
-        file<<p[0]<<" "<<p[1]<<" "<<p[2]<<" "<<std::endl;
-    }
+        ofstream file;
+        file.open(filename);
+        file<<"COFF"<<std::endl;
+        file<<polydata->GetNumberOfPoints()<<" "<<polydata->GetNumberOfCells()<<" "<<0<<std::endl;
+        double p[3], c[3];
+        vtkDataArray* colordata;
+        colordata = polydata->GetPointData()->GetScalars();
 
-    vtkSmartPointer<vtkIdList> cellidlist = vtkSmartPointer<vtkIdList>::New();
-    for (vtkIdType i = 0; i <polydata->GetNumberOfCells();i++)
-    {
-        polydata->GetCellPoints(i, cellidlist);
-        file<<(int)cellidlist->GetNumberOfIds();
-        for (vtkIdType j=0; j<cellidlist->GetNumberOfIds();j++)
+        for(vtkIdType i = 0; i < polydata->GetNumberOfPoints(); i++)
         {
-            file<<" "<<(int)cellidlist->GetId(j);
+            polydata->GetPoint(i, p);
+            colordata->GetTuple(i, c);
+
+            file<<p[0]<<" "<<p[1]<<" "<<p[2]<<" "<<(int)c[0]<<" "<<(int)c[1]<<" "<<(int)c[2]<<" 255 "<<std::endl;
         }
-        file<<std::endl;
+
+        vtkSmartPointer<vtkIdList> cellidlist = vtkSmartPointer<vtkIdList>::New();
+        for (vtkIdType i = 0; i <polydata->GetNumberOfCells();i++)
+        {
+            polydata->GetCellPoints(i, cellidlist);
+            file<<(int)cellidlist->GetNumberOfIds();
+            for (vtkIdType j=0; j<cellidlist->GetNumberOfIds();j++)
+            {
+                file<<" "<<(int)cellidlist->GetId(j);
+            }
+            file<<std::endl;
+        }
+        file.close();
     }
-    file.close();
+    else
+    {
+        ofstream file;
+        file.open(filename);
+        file<<"OFF"<<std::endl;
+        file<<polydata->GetNumberOfPoints()<<" "<<polydata->GetNumberOfCells()<<" "<<0<<std::endl;
+        double p[3];
+        for(vtkIdType i = 0; i < polydata->GetNumberOfPoints(); i++)
+        {
+            polydata->GetPoint(i, p);
+            file<<p[0]<<" "<<p[1]<<" "<<p[2]<<" "<<std::endl;
+        }
+
+        vtkSmartPointer<vtkIdList> cellidlist = vtkSmartPointer<vtkIdList>::New();
+        for (vtkIdType i = 0; i <polydata->GetNumberOfCells();i++)
+        {
+            polydata->GetCellPoints(i, cellidlist);
+            file<<(int)cellidlist->GetNumberOfIds();
+            for (vtkIdType j=0; j<cellidlist->GetNumberOfIds();j++)
+            {
+                file<<" "<<(int)cellidlist->GetId(j);
+            }
+            file<<std::endl;
+        }
+        file.close();
+    }
 }

@@ -24,9 +24,9 @@ public:
     FileManager();
     ~FileManager();
     void LoadNewFile(QString fileName);
-    void SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename);
+    void SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename, bool colored = false);
     vtkSmartPointer<vtkPolyData> readFileOFF(const char *filename);
-    void writeFileOff(vtkSmartPointer<vtkPolyData> polydata, const char *filename);
+    void writeFileOff(vtkSmartPointer<vtkPolyData> polydata, const char *filename, bool colored = false);
     vtkSmartPointer<vtkPolyData> getfile() {return m_polydata;}
 
 private:
