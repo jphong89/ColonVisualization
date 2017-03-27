@@ -645,8 +645,44 @@ void MainWindow::on_actionLighting_triggered()
     m_lightdialog.exec();
 }
 
-void MainWindow::on_action_Deform_Colon_triggered()
+void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
+    test = true;
+    if(test)
+    {
+        double f1[3] = {8.183, -4.317, 11.282}, f2[3] = {-5.445, 2.407, -3.106}, f3[3] = {3.959, -4.641, 0.886};
+        vtkSmartPointer<vtkPoints> fiducials = vtkSmartPointer<vtkPoints>::New();
+        fiducials->InsertNextPoint(f1);
+        fiducials->InsertNextPoint(f2);
+        fiducials->InsertNextPoint(f3);
+        vtkSmartPointer<vtkPolyData> fiducialspoly = vtkSmartPointer<vtkPolyData>::New();
+        fiducialspoly->SetPoints(fiducials);
+        vtkSmartPointer<vtkVertexGlyphFilter> vertexFiducial = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+        vertexFiducial->SetInputData(fiducialspoly);
+        vertexFiducial->Update();
+        vtkSmartPointer<vtkPolyDataMapper> fiducialsMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        fiducialsMapper->SetInputConnection(vertexFiducial->GetOutputPort());
+        fiducialsMapper->Update();
+        vtkSmartPointer<vtkActor> fiducialActor = vtkSmartPointer<vtkActor>::New();
+        fiducialActor->SetMapper(fiducialsMapper);
+        m_rendermanager->renderModel(fiducialActor);
+
+        double pd1[3], pd2[3], pd3[3], vpar[3], v2[3];
+        double projection;
+        vtkMath::Subtract(f1, f2, pd1);
+        vtkMath::Normalize(pd1);
+        vtkMath::Subtract(f3, f2, v2);
+        projection = vtkMath::Dot(pd1, v2);
+        vpar[0] = proj * pd1[0];
+        vpar[1] = proj * pd1[1];
+        vpar[2] = proj * pd1[2];
+
+
+
+
+    }
+    else
+    {
     double factor = 3, r0 = 18.5793, adjust = 0.75;
     double aver = 0;
     double origin[3] = {667.6, 491.462, -213.051}, normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
@@ -689,6 +725,7 @@ void MainWindow::on_action_Deform_Colon_triggered()
         vtkMath::Add(temp2, vz, newp);
         leftnewpoints->InsertNextPoint(newp);
         aver += r;
+            std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
     }
     leftpart->SetPoints(leftnewpoints);
 
@@ -728,6 +765,7 @@ void MainWindow::on_action_Deform_Colon_triggered()
         vtkMath::Add(temp2, vz, newp);
         rightnewpoints->InsertNextPoint(newp);
         aver += r;
+            std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
     }
     rightpart->SetPoints(rightnewpoints);
     aver = aver / (leftpart->GetNumberOfPoints() + rightpart->GetNumberOfPoints());
@@ -770,6 +808,7 @@ void MainWindow::on_action_Deform_Colon_triggered()
     m_showselectedwindow.RenderSelected(selectedActor);
 
     m_filemanager->SaveFile(bended, "openedcolon.off");
+    }
     //m_showselectedwindow.RenderSelected(edgeActor);
     //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
 

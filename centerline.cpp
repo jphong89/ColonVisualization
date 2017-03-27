@@ -3296,6 +3296,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     optimizedActor->SetMapper(optimizedMapper);
     //optimizedActor->GetProperty()->SetRepresentationToWireframe();
     t_rendermanager->renderModel(optimizedActor);
+
+    t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
     //
 
     free(Is_Fixed);

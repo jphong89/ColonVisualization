@@ -67,7 +67,7 @@ private slots:
 
     void on_actionLighting_triggered();
 
-    void on_action_Deform_Colon_triggered();
+    void on_action_Deform_Colon_triggered(bool test = false);
 
 private:
     Ui::MainWindow *ui;
