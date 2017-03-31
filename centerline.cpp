@@ -3243,6 +3243,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         vtkIdType id = pointLocator->FindClosestPoint(p);
         Is_Fixed[id] = true;
     }
+
+    /* // output the deformation field to .txt file
     ofstream file;
     file.open("/home/ruibinma/Desktop/deformation_v3_1.txt");
     for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
@@ -3254,6 +3256,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
     }
     file.close();
+    */
     //
     //visualize the fixed points
 
