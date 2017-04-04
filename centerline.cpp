@@ -1345,7 +1345,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> NormalCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     NormalCutCirclesActor->SetMapper(NormalCutCirclesMapper);
     NormalCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
-    t_rendermanager->renderModel(NormalCutCirclesActor);
+    //t_rendermanager->renderModel(NormalCutCirclesActor);
 
     // visualize the violation points
     /*
@@ -1509,7 +1509,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     */
 
     // Calculate the Reference Directions
+
     vtkSmartPointer<vtkDoubleArray> RefDirections = vtkSmartPointer<vtkDoubleArray>::New();
+
     RefDirections->SetNumberOfComponents(3);
     double lastDirection[3];
     Normals->GetTuple(0, lastDirection);
@@ -1525,6 +1527,10 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Normalize(projection);
         RefDirections->InsertNextTuple(projection);
     }
+    // Use Lorentzian Interpolation to align the cross sections
+
+
+
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
@@ -2954,7 +2960,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             for(vtkIdType j = 0; j<lastCircle->GetNumberOfPoints(); j++)
             {
 
-                if(cutCircle->GetNumberOfPoints() >= 80)
+                if(cutCircle->GetNumberOfPoints() >= 70)
                     break;
                 connectivityFilter->SetClosestPoint(lastCircle->GetPoint(j));
                 connectivityFilter->Update();
