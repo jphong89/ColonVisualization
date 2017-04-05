@@ -1304,7 +1304,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         if(iter == MaxIter - 1)
         {
             //VisualizeTNB(S, Curvatures, Tangents, Normals, Binormals, t_rendermanager);
-            VisualizeSpoke(CurvaturePoints, ViolationNums, t_rendermanager);
+            //VisualizeSpoke(CurvaturePoints, ViolationNums, t_rendermanager);
         }
         if(modify && iter < MaxIter)
         {
@@ -1345,7 +1345,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> NormalCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     NormalCutCirclesActor->SetMapper(NormalCutCirclesMapper);
     NormalCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
-    //t_rendermanager->renderModel(NormalCutCirclesActor);
+    t_rendermanager->renderModel(NormalCutCirclesActor);
 
     // visualize the violation points
     /*
@@ -1529,8 +1529,16 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     }
     // Use Lorentzian Interpolation to align the cross sections
     vtkSmartPointer<vtkDoubleArray> InterpolatedRefDirections = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkPoints> EndPoints = vtkSmartPointer<vtkPoints>::New();
+    EndPoints->SetNumberOfPoints(model->GetNumberOfPoints());
+    vtkSmartPointer<vtkPolyData> EndPointsPoly = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    vtkSmartPointer<vtkPolyDataMapper> EndPointsMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    vtkSmartPointer<vtkActor> EndPointsActor = vtkSmartPointer<vtkActor>::New();
     InterpolatedRefDirections->DeepCopy(RefDirections);
-    int litv = 10;
+    //InterpolatedRefDirections->SetNumberOfComponents(3);
+    //InterpolatedRefDirections->SetNumberOfTuples(model->GetNumberOfPoints());
+    int litv = 20;
     int nitv = model->GetNumberOfPoints()/litv + 1;
     std::cout<<"number of intervals = "<<nitv<<endl;
     for(int i=0; i < nitv; i++)
@@ -1545,6 +1553,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         double e0[3], e1[3], t0[3], t1[3];
         RefDirections->GetTuple(id0, e0);
         RefDirections->GetTuple(id1, e1);
+        //Normals->GetTuple(id0, e0);
+        //Normals->GetTuple(id1, e1);
+
         Tangents->GetTuple(id0, t0);
         Tangents->GetTuple(id1, t1);
         double angle = vtkMath::AngleBetweenVectors(t0, t1);
@@ -1556,17 +1567,41 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             et[0] = lambda0*e0[0] + lambda1*e1[0];
             et[1] = lambda0*e0[1] + lambda1*e1[1];
             et[2] = lambda0*e0[2] + lambda1*e1[2];
+            vtkMath::Normalize(et);
             int idt = id0 + j;
             InterpolatedRefDirections->SetTuple(idt, et);
-        }
-    }
+            std::cout<<idt<<" ";
 
+            // visualize the end points
+            double end[3], cp[3];
+            model->GetPoint(idt, cp);
+            RefDirections->GetTuple(idt, et);
+            vtkMath::MultiplyScalar(et, 20);
+            vtkMath::Add(cp, et, end);
+            EndPoints->SetPoint(idt, end);
+        }
+        std::cout<<endl;
+    }
+    // visualize the end points
+    /*
+    EndPointsPoly->SetPoints(EndPoints);
+    vertexFilter->SetInputData(EndPointsPoly);
+    vertexFilter->Update();
+    EndPointsMapper->SetInputConnection(vertexFilter->GetOutputPort());
+    EndPointsMapper->Update();
+    EndPointsActor->SetMapper(EndPointsMapper);
+    EndPointsActor->GetProperty()->SetColor(0,0,1);
+    EndPointsActor->GetProperty()->SetPointSize(5);
+    t_rendermanager->renderModel(EndPointsActor);
+    */
+
+    VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
 
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
-    //return NULL;
+    //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
+    return NULL;
 }
 
 void CreateCircle( const double& z, const double& radius, const int& resolution, vtkPolyData* polyData )
