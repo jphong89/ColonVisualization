@@ -940,9 +940,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     // Arrays for tangents, normals, binormals, curvatures, torsions, length parameters, unified parameters
     vtkSmartPointer<vtkDoubleArray> Tangents = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> Normals = vtkSmartPointer<vtkDoubleArray>::New();
-    //vtkSmartPointer<vtkDoubleArray> Binormals = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkDoubleArray> Binormals = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> Curvatures = vtkSmartPointer<vtkDoubleArray>::New();
-    //vtkSmartPointer<vtkDoubleArray> Torsions = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkDoubleArray> Torsions = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> S = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkDoubleArray> U = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkPoints> CurvaturePoints = vtkSmartPointer<vtkPoints>::New();
@@ -976,9 +976,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             std::cout<<"Iteration: Visualize the effect of the last modification"<<endl;
         Tangents->Reset();          Tangents->SetNumberOfComponents(3);        Tangents->SetNumberOfTuples(N);
         Normals->Reset();           Normals->SetNumberOfComponents(3);         Normals->SetNumberOfTuples(N);
-        //Binormals->Reset();         Binormals->SetNumberOfComponents(3);       Binormals->SetNumberOfTuples(N);
+        Binormals->Reset();         Binormals->SetNumberOfComponents(3);       Binormals->SetNumberOfTuples(N);
         Curvatures->Reset();                                                   Curvatures->SetNumberOfValues(N);
-        //Torsions->Reset();                                                     Torsions->SetNumberOfValues(N);
+        Torsions->Reset();                                                     Torsions->SetNumberOfValues(N);
         S->Reset();                                                            S->SetNumberOfValues(N);
         U->Reset();                                                            U->SetNumberOfValues(N);
         CurvaturePoints->Reset();                                              CurvaturePoints->SetNumberOfPoints(N);
@@ -1084,7 +1084,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         }
 
         // Get the binormal on each point
-        /*
+
         for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
         {
             double tangent[3], normal[3], binormal[3];
@@ -1140,7 +1140,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
             Torsions->InsertValue(i, torsion);
             //std::cout<<"torsion: "<<i<<" "<<torsion<<endl;
         }
-        */
+
 
         // cut circle
         vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
@@ -1526,15 +1526,14 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Subtract(lastDirection, t, projection);
         vtkMath::Normalize(projection);
         RefDirections->InsertNextTuple(projection);
+        lastDirection[0] = projection[0];
+        lastDirection[1] = projection[1];
+        lastDirection[2] = projection[2];
     }
-    // Use Lorentzian Interpolation to align the cross sections
+    /* // Use Lorentzian Interpolation to align the cross sections
     vtkSmartPointer<vtkDoubleArray> InterpolatedRefDirections = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkPoints> EndPoints = vtkSmartPointer<vtkPoints>::New();
     EndPoints->SetNumberOfPoints(model->GetNumberOfPoints());
-    vtkSmartPointer<vtkPolyData> EndPointsPoly = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
-    vtkSmartPointer<vtkPolyDataMapper> EndPointsMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    vtkSmartPointer<vtkActor> EndPointsActor = vtkSmartPointer<vtkActor>::New();
     InterpolatedRefDirections->DeepCopy(RefDirections);
     //InterpolatedRefDirections->SetNumberOfComponents(3);
     //InterpolatedRefDirections->SetNumberOfTuples(model->GetNumberOfPoints());
@@ -1582,26 +1581,15 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         }
         std::cout<<endl;
     }
-    // visualize the end points
-    /*
-    EndPointsPoly->SetPoints(EndPoints);
-    vertexFilter->SetInputData(EndPointsPoly);
-    vertexFilter->Update();
-    EndPointsMapper->SetInputConnection(vertexFilter->GetOutputPort());
-    EndPointsMapper->Update();
-    EndPointsActor->SetMapper(EndPointsMapper);
-    EndPointsActor->GetProperty()->SetColor(0,0,1);
-    EndPointsActor->GetProperty()->SetPointSize(5);
-    t_rendermanager->renderModel(EndPointsActor);
-    */
 
     VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
+    */
 
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
-    return NULL;
+    //return NULL;
 }
 
 void CreateCircle( const double& z, const double& radius, const int& resolution, vtkPolyData* polyData )
