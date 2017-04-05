@@ -1528,12 +1528,44 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         RefDirections->InsertNextTuple(projection);
     }
     // Use Lorentzian Interpolation to align the cross sections
-
+    vtkSmartPointer<vtkDoubleArray> InterpolatedRefDirections = vtkSmartPointer<vtkDoubleArray>::New();
+    InterpolatedRefDirections->DeepCopy(RefDirections);
+    int litv = 10;
+    int nitv = model->GetNumberOfPoints()/litv + 1;
+    std::cout<<"number of intervals = "<<nitv<<endl;
+    for(int i=0; i < nitv; i++)
+    {
+        int id0 = i*litv;
+        int id1 = (i+1)*litv;
+        if(id0 >= model->GetNumberOfPoints()-1)
+            break;
+        if(id1 >= model->GetNumberOfPoints())
+            id1 = model->GetNumberOfPoints()-1;
+        std::cout<<id0<<"--"<<id1<<endl;
+        double e0[3], e1[3], t0[3], t1[3];
+        RefDirections->GetTuple(id0, e0);
+        RefDirections->GetTuple(id1, e1);
+        Tangents->GetTuple(id0, t0);
+        Tangents->GetTuple(id1, t1);
+        double angle = vtkMath::AngleBetweenVectors(t0, t1);
+        for(int j = 0; j <= id1 - id0; j++)
+        {
+            double et[3], t = (double)j/double(id1-id0);
+            double lambda0 = LorentzianInterpolationFactor(1-t, angle);
+            double lambda1 = LorentzianInterpolationFactor(t, angle);
+            et[0] = lambda0*e0[0] + lambda1*e1[0];
+            et[1] = lambda0*e0[1] + lambda1*e1[1];
+            et[2] = lambda0*e0[2] + lambda1*e1[2];
+            int idt = id0 + j;
+            InterpolatedRefDirections->SetTuple(idt, et);
+        }
+    }
 
 
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+    //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
     //return NULL;
 }
 
