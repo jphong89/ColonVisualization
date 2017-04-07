@@ -924,6 +924,23 @@ void Centerline::VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkS
 
     t_rendermanager->renderModel(spokeActor);
 }
+void VisualizePoints(vtkSmartPointer<vtkPoints> points, double r, double g, double b, float size, RenderManager *t_rendermanager)
+{
+    vtkSmartPointer<vtkPolyData> poly = vtkSmartPointer<vtkPolyData>::New();
+    poly->SetPoints(points);
+    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    vertexFilter->SetInputData(poly);
+    vertexFilter->Update();
+    vtkSmartPointer<vtkPolyDataMapper> pointsMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    pointsMapper->SetInputConnection(vertexFilter->GetOutputPort());
+    pointsMapper->Update();
+    vtkSmartPointer<vtkActor> pointsActor = vtkSmartPointer<vtkActor>::New();
+    pointsActor->SetMapper(pointsMapper);
+    pointsActor->GetProperty()->SetColor(r, g, b);
+    pointsActor->GetProperty()->SetPointSize(size);
+
+    t_rendermanager->renderModel(pointsActor);
+}
 
 vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon, FileManager *t_filemanager)
 {

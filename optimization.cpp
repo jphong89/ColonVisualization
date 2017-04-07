@@ -46,19 +46,6 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
         }
     }
     std::cout<<"unfixed points: "<<unfixedpoints->GetNumberOfPoints()<<endl;
-    vtkSmartPointer<vtkPolyData> unfixedpoly = vtkSmartPointer<vtkPolyData>::New();
-    unfixedpoly->SetPoints(unfixedpoints);
-    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
-    vertexFilter->SetInputData(unfixedpoly);
-    vertexFilter->Update();
-    vtkSmartPointer<vtkPolyDataMapper> unfixedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    unfixedMapper->SetInputConnection(vertexFilter->GetOutputPort());
-    unfixedMapper->Update();
-    vtkSmartPointer<vtkActor> unfixedActor = vtkSmartPointer<vtkActor>::New();
-    unfixedActor->SetMapper(unfixedMapper);
-    unfixedActor->GetProperty()->SetColor(0,1,0);
-    unfixedActor->GetProperty()->SetPointSize(5);
-    t_rendermanager->renderModel(unfixedActor);
 
 
     int m = Ids->GetNumberOfIds() * 3;
@@ -93,10 +80,13 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
         b(k) = b_c[k];
     }
 
-    Eigen::SimplicialCholesky<SpMat> chol(A);
-    Eigen::VectorXd solved_x = chol.solve(b);
+    Eigen::BiCGSTAB<SpMat, Eigen::IncompleteLUT<double> > solver;
+    //Eigen::SimplicialCholesky<SpMat> solver;
+    solver.compute(A);
+    Eigen::VectorXd solved_x = solver.solve(b);
 
     vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkPoints> checkpoints = vtkSmartPointer<vtkPoints>::New();
     newpoints = SurfaceLineUp->GetPoints();
     for(int vidx = 0; vidx < Ids->GetNumberOfIds(); vidx++)
     {
@@ -106,10 +96,17 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
         v[0] = solved_x(vidx*3);
         v[1] = solved_x(vidx*3+1);
         v[2] = solved_x(vidx*3+2);
-        //std::cout<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
+        //std::cout<<vidx<<" "<<pold[0]<<" "<<pold[1]<<" "<<pold[2]<<" - "<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
         vtkMath::Add(pold, v, pnew);
         newpoints->SetPoint(idx, pnew);
+
+        if(isnan(v[0]) || isnan(v[1]) || isnan(v[2]))
+        {
+            checkpoints->InsertNextPoint(pold);
+            std::cout<<checkpoints->GetNumberOfPoints()<<" "<<Ids->GetId(vidx)<<endl;
+        }
     }
+    VisualizePoints(checkpoints, (double)1, (double)0, (double)0, (float)5, t_rendermanager);
     OptimizedSurface->SetPoints(newpoints);
 
     free(b_c);
@@ -324,7 +321,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             t_colon->GetPoint(idx2, pold);
             SurfaceLineUp->GetPoint(idx2, pnew);
             vtkMath::Subtract(pnew, pold, v);
-            std::cout<<"1- "<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
+            //std::cout<<"1- "<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
             b[vidx1*3] +=   2 * v[0] * weight/2;
             b[vidx1*3+1] += 2 * v[1] * weight/2;
             b[vidx1*3+2] += 2 * v[2] * weight/2;
@@ -341,7 +338,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             t_colon->GetPoint(idx1, pold);
             SurfaceLineUp->GetPoint(idx1, pnew);
             vtkMath::Subtract(pnew, pold, v);
-            std::cout<<"2- "<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
+            //std::cout<<"2- "<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
             b[vidx2*3] +=   2 * v[0] * weight/2;
             b[vidx2*3+1] += 2 * v[1] * weight/2;
             b[vidx2*3+2] += 2 * v[2] * weight/2;

@@ -96,6 +96,7 @@ public:
     void VisualizeSpoke(vtkSmartPointer<vtkPoints> CurvaturePoints, vtkSmartPointer<vtkIntArray> ViolationNums, RenderManager *t_rendermanager);
     void VisualizeOriginalCurve(RenderManager* t_rendermanager);
 
+
     vtkSmartPointer<vtkPolyData> ReorderContour(vtkSmartPointer<vtkPolyData> cutCircle);
     vtkSmartPointer<vtkPolyData> FormPlate(vtkSmartPointer<vtkPolyData> cutCircle);
     double SinglePath(double **costVrt, double **costHrz,int sx, int sy, int tx, int ty, int *steps);
@@ -119,6 +120,8 @@ public:
                        vtkDoubleArray* PlaneOriginals, vtkDoubleArray* PlaneNormals, vtkPolyDataGroup* CircleGroup);
     vtkSmartPointer<vtkIntArray> GetSectionHeadAndTail(vtkSmartPointer<vtkDoubleArray> Curvatures, double thres);
     double LorentzianInterpolationFactor(double l, double angle);
+
 };
 
+void VisualizePoints(vtkSmartPointer<vtkPoints> points, double r, double g, double b, float size, RenderManager* t_rendermanager);
 #endif // CENTERLINE_H
