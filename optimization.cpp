@@ -1,6 +1,6 @@
 #include "optimization.h"
 
-vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp, bool *Is_Fixed)
+vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp, bool *Is_Fixed, RenderManager *t_rendermanager)
 {
     vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
     OptimizedSurface->DeepCopy(SurfaceLineUp);
@@ -24,6 +24,42 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
         }
     }
 
+    // check whether there's nan
+    /*
+    for(int i=0; i<SurfaceLineUp->GetNumberOfPoints(); i++)
+    {
+        double p[3];
+        SurfaceLineUp->GetPoint(i, p);
+        std::cout<<i<<" "<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+    }
+    */
+    // visualize the unfixed points
+    vtkSmartPointer<vtkPoints> unfixedpoints = vtkSmartPointer<vtkPoints>::New();
+    for(int i=0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        if(InvertIds[i] > -0.5)
+        {
+            int id = i;
+            double p[3];
+            t_colon->GetPoint(id, p);
+            unfixedpoints->InsertNextPoint(p);
+        }
+    }
+    std::cout<<"unfixed points: "<<unfixedpoints->GetNumberOfPoints()<<endl;
+    vtkSmartPointer<vtkPolyData> unfixedpoly = vtkSmartPointer<vtkPolyData>::New();
+    unfixedpoly->SetPoints(unfixedpoints);
+    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+    vertexFilter->SetInputData(unfixedpoly);
+    vertexFilter->Update();
+    vtkSmartPointer<vtkPolyDataMapper> unfixedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    unfixedMapper->SetInputConnection(vertexFilter->GetOutputPort());
+    unfixedMapper->Update();
+    vtkSmartPointer<vtkActor> unfixedActor = vtkSmartPointer<vtkActor>::New();
+    unfixedActor->SetMapper(unfixedMapper);
+    unfixedActor->GetProperty()->SetColor(0,1,0);
+    unfixedActor->GetProperty()->SetPointSize(5);
+    t_rendermanager->renderModel(unfixedActor);
+
 
     int m = Ids->GetNumberOfIds() * 3;
     std::cout<<"total number of variables = "<<m<<endl;
@@ -33,7 +69,7 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
     double* b_c = (double *)malloc(m*sizeof(double));
     memset(b_c, 0, sizeof(double)*m);
 
-    constructAandb(coefficientMap, b_c, t_colon, SurfaceLineUp, Is_Fixed, Ids, InvertIds);
+    constructAandb(coefficientMap, b_c, t_colon, SurfaceLineUp, Is_Fixed, Ids, InvertIds, t_rendermanager);
 
     // transform coefficientMap into a data structure that eigen recognizes
     std::vector<T> coefficients;
@@ -169,7 +205,7 @@ double ComputeStretchWeight(vtkSmartPointer<vtkPolyData> t_colon, int idx1, int 
 
 void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                 vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp,
-                bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids, int* InvertIds)
+                bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids, int* InvertIds, RenderManager *t_rendermanager)
 {
     int m = Ids->GetNumberOfIds() * 3;
 
@@ -218,6 +254,36 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         }
         marked[i] = true;
     }
+
+    /* //check whether the lines are correct
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    points = t_colon->GetPoints();
+    vtkSmartPointer<vtkCellArray> liness = vtkSmartPointer<vtkCellArray>::New();
+    for(int i=0; i < lines->GetNumberOfTuples(); i++)
+    {
+        int tuple[2];
+        lines->GetTypedTuple(i, tuple);
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        line->GetPointIds()->SetId(0, tuple[0]);
+        line->GetPointIds()->SetId(1, tuple[1]);
+        liness->InsertNextCell(line);
+    }
+    vtkSmartPointer<vtkPolyData> poly = vtkSmartPointer<vtkPolyData>::New();
+    poly->SetPoints(points);
+    //poly->SetPolys(liness);
+    poly->SetLines(liness);
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputData(poly);
+    mapper->Update();
+    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    actor->SetMapper(mapper);
+    actor->GetProperty()->SetColor(1,0,0);
+    t_rendermanager->renderModel(actor);
+    */
+
+
+
+
     for(int i=0; i < lines->GetNumberOfTuples(); i++)
     {
         int tuple[2];
@@ -246,7 +312,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             updateA(m, vidx1, vidx2, -weight, coefficientMap);
             updateA(m, vidx2, vidx1, -weight, coefficientMap);
         }
-        else if(!Is_Fixed[idx1]) // if one point is fixed, we need to update A for the flexible point and add a linear term in b
+        else if(!Is_Fixed[idx1] && Is_Fixed[idx2]) // if one point is fixed, we need to update A for the flexible point and add a linear term in b
         {
             int vidx1 = InvertIds[idx1];
             //std::cout<<m<<" "<<vidx1<<endl;
@@ -258,11 +324,12 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             t_colon->GetPoint(idx2, pold);
             SurfaceLineUp->GetPoint(idx2, pnew);
             vtkMath::Subtract(pnew, pold, v);
+            std::cout<<"1- "<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
             b[vidx1*3] +=   2 * v[0] * weight/2;
             b[vidx1*3+1] += 2 * v[1] * weight/2;
             b[vidx1*3+2] += 2 * v[2] * weight/2;
         }
-        else if(!Is_Fixed[idx2])
+        else if(Is_Fixed[idx1] && !Is_Fixed[idx2])
         {
             int vidx2 = InvertIds[idx2];
             //std::cout<<m<<" "<<vidx2<<endl;
@@ -274,6 +341,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             t_colon->GetPoint(idx1, pold);
             SurfaceLineUp->GetPoint(idx1, pnew);
             vtkMath::Subtract(pnew, pold, v);
+            std::cout<<"2- "<<v[0]<<" "<<v[1]<<" "<<v[2]<<endl;
             b[vidx2*3] +=   2 * v[0] * weight/2;
             b[vidx2*3+1] += 2 * v[1] * weight/2;
             b[vidx2*3+2] += 2 * v[2] * weight/2;

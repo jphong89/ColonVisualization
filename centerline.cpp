@@ -3287,7 +3287,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     SurfaceLineUpMapper->Update();
     vtkSmartPointer<vtkActor> SurfaceLineUpActor = vtkSmartPointer<vtkActor>::New();
     SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
-    //t_rendermanager->renderModel(SurfaceLineUpActor);
+    t_rendermanager->renderModel(SurfaceLineUpActor);
     //t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v3_1.stl");
 
     // output a deformation file
@@ -3296,7 +3296,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     pointLocator->BuildLocator();
     bool* Is_Fixed = (bool*)malloc(sizeof(bool) * t_colon->GetNumberOfPoints());
     memset(Is_Fixed, 0, sizeof(bool) * t_colon->GetNumberOfPoints());
-    vtkSmartPointer<vtkDoubleArray> DeformationField = vtkSmartPointer<vtkDoubleArray>::New();
+    //vtkSmartPointer<vtkDoubleArray> DeformationField = vtkSmartPointer<vtkDoubleArray>::New();
     for(vtkIdType i = 0; i < OriginCutCircle->GetNumberOfPoints(); i++)
     {
         double p[3];
@@ -3349,18 +3349,27 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //
     // optimization
+
     vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
-    OptimizedSurface = Optimize(t_colon, SurfaceLineUp, Is_Fixed);
+    OptimizedSurface = Optimize(t_colon, SurfaceLineUp, Is_Fixed, t_rendermanager);
+
+    // exam the OptimizedSurface points
+    /*
+
+    */
+
+
+
     vtkSmartPointer<vtkPolyDataMapper> optimizedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     optimizedMapper->SetInputData(OptimizedSurface);
     optimizedMapper->Update();
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
     //optimizedActor->GetProperty()->SetRepresentationToWireframe();
-    t_rendermanager->renderModel(optimizedActor);
+    //t_rendermanager->renderModel(optimizedActor);
 
     t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
-    //
+
 
     free(Is_Fixed);
     delete CircleGroup;

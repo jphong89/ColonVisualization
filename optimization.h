@@ -16,9 +16,9 @@ typedef Eigen::Triplet<double> T;
 
 void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                 vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp,
-                bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids,int* InvertIds);
+                bool *Is_Fixed, vtkSmartPointer<vtkIdList> Ids,int* InvertIds, RenderManager* t_rendermanager);
 
-vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp, bool *Is_Fixed);
+vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkSmartPointer<vtkPolyData> SurfaceLineUp, bool *Is_Fixed, RenderManager* t_rendermanager);
 
 void updateA(int m, int i1, int i2, double weight, std::map<vtkIdType, double> &coefficientMap);
 
