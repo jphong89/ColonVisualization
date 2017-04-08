@@ -56,7 +56,18 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
     double* b_c = (double *)malloc(m*sizeof(double));
     memset(b_c, 0, sizeof(double)*m);
 
+    for(int i=0; i < m; i++)
+    {
+        if(isnan(b_c[i]))
+        std::cout<<Ids->GetId(i/3)<<"()"<<b_c[i]<<endl;
+    }
     constructAandb(coefficientMap, b_c, t_colon, SurfaceLineUp, Is_Fixed, Ids, InvertIds, t_rendermanager);
+
+    for(int i=0; i < m; i++)
+    {
+        if(isnan(b_c[i]))
+        std::cout<<Ids->GetId(i/3)<<" "<<b_c[i]<<endl;
+    }
 
     // transform coefficientMap into a data structure that eigen recognizes
     std::vector<T> coefficients;
@@ -67,8 +78,8 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
         int idx2 = floor((double(it->first) + 0.01) / m);
 
         coefficients.push_back(T(idx1, idx2, it->second));
-        //if(idx1 == 51242 || idx2 == 51242)
-        //std::cout<<it->first<<" "<<idx1<<" "<<idx2<<" "<<it->second<<endl;
+        //if(Ids->GetNumberOfIds() < 300)
+          //  std::cout<<it->first<<" "<<idx1<<" "<<idx2<<" "<<it->second<<endl;
     }
     SpMat A(m,m);
     A.setFromTriplets(coefficients.begin(), coefficients.end());
@@ -80,8 +91,10 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
         b(k) = b_c[k];
     }
 
-    Eigen::BiCGSTAB<SpMat, Eigen::IncompleteLUT<double> > solver;
-    //Eigen::SimplicialCholesky<SpMat> solver;
+    //Eigen::BiCGSTAB<SpMat, Eigen::IncompleteLUT<double> > solver;
+    //solver.preconditioner().setDroptol(0.001);
+    //Eigen::BiCGSTAB<SpMat >  solver;
+    Eigen::SimplicialCholesky<SpMat> solver;
     solver.compute(A);
     Eigen::VectorXd solved_x = solver.solve(b);
 
@@ -197,6 +210,12 @@ double ComputeStretchWeight(vtkSmartPointer<vtkPolyData> t_colon, int idx1, int 
     t_colon->GetPoint(idx2, p2);
     double l = sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
     //std::cout<<list->GetNumberOfIds()<<" - "<<area<<" "<<l<<endl;
+    double rv = area / l / l;
+    if(isnan(rv))
+    {
+        std::cout<<idx1<<" "<<p1[0]<<" "<<p1[1]<<" "<<p1[2]<<endl;
+        std::cout<<idx2<<" "<<p2[0]<<" "<<p2[1]<<" "<<p2[2]<<endl;
+    }
     return area / l / l;
 }
 
@@ -304,6 +323,8 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
             //std::cout<<"stretch weight = "<<stretchWeight<<endl;
             double weight = REGWEIGHT * stretchWeight * 4;
+            if(isnan(weight))
+                std::cout<<"nan weight A "<<idx1<<" "<<idx2<<endl;
             updateA(m, vidx1, vidx1, weight, coefficientMap);
             updateA(m, vidx2, vidx2, weight, coefficientMap);
             updateA(m, vidx1, vidx2, -weight, coefficientMap);
@@ -316,6 +337,8 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             assert(vidx1 > -0.5);
             double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
             double weight = REGWEIGHT * stretchWeight *4;
+            if(isnan(weight))
+                std::cout<<"nan weight b1 "<<idx1<<" "<<idx2<<endl;
             updateA(m, vidx1, vidx1, weight, coefficientMap);
             double v[3], pold[3], pnew[3];
             t_colon->GetPoint(idx2, pold);
@@ -325,6 +348,8 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             b[vidx1*3] +=   2 * v[0] * weight/2;
             b[vidx1*3+1] += 2 * v[1] * weight/2;
             b[vidx1*3+2] += 2 * v[2] * weight/2;
+            if(isnan(b[vidx1*3]))
+                std::cout<<idx1<<" - "<<b[vidx1*3]<<endl;
         }
         else if(Is_Fixed[idx1] && !Is_Fixed[idx2])
         {
@@ -333,6 +358,8 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             assert(vidx2 > -0.5);
             double stretchWeight = ComputeStretchWeight(t_colon, idx1, idx2);
             double weight = REGWEIGHT * stretchWeight * 4;
+            if(isnan(weight))
+                std::cout<<"nan weight b2 "<<idx1<<" "<<idx2<<endl;
             updateA(m, vidx2, vidx2, weight, coefficientMap);
             double v[3], pold[3], pnew[3];
             t_colon->GetPoint(idx1, pold);
@@ -342,12 +369,14 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
             b[vidx2*3] +=   2 * v[0] * weight/2;
             b[vidx2*3+1] += 2 * v[1] * weight/2;
             b[vidx2*3+2] += 2 * v[2] * weight/2;
+            if(isnan(b[vidx2*3]))
+                std::cout<<idx2<<" - "<<b[vidx2*3]<<endl;
         }
-
     }
 
     // bend
     // compute surround areas
+
     vtkSmartPointer<vtkDoubleArray> SurroundAreas = vtkSmartPointer<vtkDoubleArray>::New();
     for(int i = 0; i < t_colon->GetNumberOfPoints(); i++)
     {

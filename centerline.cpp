@@ -3372,13 +3372,26 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     // exam the OptimizedSurface points
     /*
+    for(int i=0; i < OptimizedSurface->GetNumberOfPoints(); i++)
+    {
+        double p[3];
+        OptimizedSurface->GetPoint(i, p);
 
+        if(isnan(p[0]) || isnan(p[1]) || isnan(p[2]))
+            continue;
+        else
+        {
+            //std::cout<<i<<" "<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
+            Is_Fixed[i] = true;
+        }
+    }
+
+    vtkSmartPointer<vtkPolyData> OptimizedSurface2 = vtkSmartPointer<vtkPolyData>::New();
+    OptimizedSurface2 = Optimize(t_colon, OptimizedSurface, Is_Fixed, t_rendermanager);
     */
 
-
-
     vtkSmartPointer<vtkPolyDataMapper> optimizedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    optimizedMapper->SetInputData(OptimizedSurface);
+    optimizedMapper->SetInputData(OptimizedSurface);//
     optimizedMapper->Update();
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
