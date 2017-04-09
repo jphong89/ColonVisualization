@@ -307,8 +307,11 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         int idx1 = tuple[0];
         int idx2 = tuple[1];
         //std::cout<<InvertIds[idx1]<<" "<<InvertIds[idx2]<<endl;
+
+
         if(GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds() == 1)
         {
+            //std::cout<<idx1<<" "<<idx2<<" "<<GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds()<<endl;
             boundary[idx1] = true;
             boundary[idx2] = true;
         }
@@ -390,11 +393,17 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         SurroundAreas->InsertNextValue(surroundarea);
     }
 
+    vtkSmartPointer<vtkPoints> boundarypoints = vtkSmartPointer<vtkPoints>::New();
     for(int i = 0; i < t_colon->GetNumberOfPoints(); i++)
     {
         int idx1 = i;
         if(boundary[idx1]) // don't process boundary edges
+        {
+            double p[3];
+            t_colon->GetPoint(i, p);
+            boundarypoints->InsertNextPoint(p);
             continue;
+        }
         if(!Is_Fixed[idx1])
         {
             //std::cout<<i<<" - "<<idx1<<endl;
@@ -620,6 +629,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         }
     }
 
+    VisualizePoints(boundarypoints, 1, 0, 0, 10, t_rendermanager);
     free(marked);
     free(boundary);
 }

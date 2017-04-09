@@ -3322,6 +3322,70 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         Is_Fixed[id] = true;
     }
 
+    // test
+    /*
+    for(int i=0; i< Sections->GetNumberOfIds(); i++)
+    {
+        if(Sections->GetId(i) != 0)
+        {
+            Is_Fixed[i] = true;
+        }
+    }
+    */
+    bool * marked = (bool*)malloc(t_colon->GetNumberOfPoints()*sizeof(bool));
+    memset(marked, 0, t_colon->GetNumberOfPoints()*sizeof(bool));
+    vtkSmartPointer<vtkIntArray> lines = vtkSmartPointer<vtkIntArray>::New();
+    lines->SetNumberOfComponents(2);
+    for(int i=0; i<t_colon->GetNumberOfPoints(); i++)
+    {
+        vtkSmartPointer<vtkIdList> linkedpts = vtkSmartPointer<vtkIdList>::New();
+        vtkSmartPointer<vtkIdList> cellids = vtkSmartPointer<vtkIdList>::New();
+        t_colon->GetPointCells(i, cellids);
+        for(int j=0; j<cellids->GetNumberOfIds(); j++)
+        {
+            vtkSmartPointer<vtkIdList> ptids = vtkSmartPointer<vtkIdList>::New();
+            t_colon->GetCellPoints(cellids->GetId(j), ptids);
+            assert(ptids->GetNumberOfIds() <= 3);
+            for(int k = 0; k < ptids->GetNumberOfIds(); k++)
+            {
+                bool linked = false;
+                int ptid = ptids->GetId(k);
+                if(ptid == i || marked[ptid])
+                    continue;
+                for(int l = 0; l < linkedpts->GetNumberOfIds(); l++)
+                {
+                    if(linkedpts->GetId(l) == ptid)
+                    {
+                        linked = true;
+                        break;
+                    }
+                }
+                if(linked)
+                    continue;
+                int tuple[2];
+                tuple[0] = i;
+                tuple[1] = ptid;
+                //std::cout<<i<<" "<<ptid<<endl;
+                linkedpts->InsertNextId(ptid);
+                lines->InsertNextTypedTuple(tuple);
+            }
+        }
+        marked[i] = true;
+    }
+    for(int i=0; i < lines->GetNumberOfTuples(); i++)
+    {
+        int tuple[2];
+        lines->GetTypedTuple(i, tuple);
+        int idx1 = tuple[0];
+        int idx2 = tuple[1];
+        if(GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds() == 1)
+        {
+            Is_Fixed[idx1] = true;
+            Is_Fixed[idx2] = true;
+        }
+    }
+    free(marked);
+
     /* // output the deformation field to .txt file
     ofstream file;
     file.open("/home/ruibinma/Desktop/deformation_v3_1.txt");
