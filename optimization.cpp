@@ -65,8 +65,7 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
 
     for(int i=0; i < m; i++)
     {
-        if(isnan(b_c[i]))
-        std::cout<<Ids->GetId(i/3)<<" "<<b_c[i]<<endl;
+        std::cout<<i<<" "<<b_c[i]<<endl;
     }
 
     // transform coefficientMap into a data structure that eigen recognizes
@@ -309,7 +308,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         //std::cout<<InvertIds[idx1]<<" "<<InvertIds[idx2]<<endl;
 
 
-        if(GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds() == 1)
+        if(GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds() <= 1)
         {
             //std::cout<<idx1<<" "<<idx2<<" "<<GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds()<<endl;
             boundary[idx1] = true;
@@ -379,7 +378,6 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
 
     // bend
     // compute surround areas
-
     vtkSmartPointer<vtkDoubleArray> SurroundAreas = vtkSmartPointer<vtkDoubleArray>::New();
     for(int i = 0; i < t_colon->GetNumberOfPoints(); i++)
     {
@@ -431,6 +429,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                     int idx12;
                     vtkSmartPointer<vtkIdList> ptids = vtkSmartPointer<vtkIdList>::New();
                     t_colon->GetCellPoints(cellids->GetId(k), ptids);
+                    assert(ptids->GetNumberOfIds() == 3);
                     for(int l = 0; l < ptids->GetNumberOfIds(); l++)
                     {
                         if(ptids->GetId(l)!=idx1 && ptids->GetId(l)!=idx2)
@@ -452,7 +451,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                     neighbor_weight += cos(angle)/sin(angle);
                     //std::cout<<idx1<<" "<<idx2<<" "<<idx12<<" : "<<cos(angle)/sin(angle)<<endl;
                 }
-                neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
+                //neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
                 //neighbor_weight = 1;
                 //std::cout<<idx2<<" "<<neighbor_weight<<" | ";
                 center_weight += neighbor_weight;
@@ -483,9 +482,15 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                     vtkMath::Subtract(pnew, pold, v);
 
                     // update the b of idx1
+                    /*
                     b[vidx1*3] += 2 * weight/2* center_weight * neighbor_weights->GetValue(j) * v[0];
                     b[vidx1*3+1] += 2 * weight/2 * center_weight * neighbor_weights->GetValue(j) * v[1];
                     b[vidx1*3+2] += 2 * weight/2 * center_weight * neighbor_weights->GetValue(j) * v[2];
+                    */
+                    //testb
+                    b[vidx1*3] += -400;
+                    b[vidx1*3+1] += 0;
+                    b[vidx1*3+2] = 0;
                     //std::cout<<vidx1<<" "<<2 * weight/2* center_weight * neighbor_weights->GetValue(j)<<endl;
 
                     for(int k = 0; k < neighbours->GetNumberOfIds(); k++)
@@ -495,9 +500,15 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                         {
                             int currentvidx = InvertIds[currentidx];
                             assert(currentvidx > -0.5);
+                            /*
                             b[currentvidx*3] += -2 * weight/2* neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[0];
                             b[currentvidx*3+1] += -2 * weight/2* neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[1];
                             b[currentvidx*3+2] += -2 * weight/2* neighbor_weights->GetValue(k) * neighbor_weights->GetValue(j) * v[2];
+                            */
+                            //testb
+                            b[currentvidx*3] += -400;
+                            b[currentvidx*3+1] += 0;
+                            b[currentvidx*3+2] = 0;
                             //std::cout<<currentvidx<<" "<<2 * weight/2* center_weight * neighbor_weights->GetValue(j)<<endl;
                         }
                     }
@@ -570,7 +581,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                         neighbor_weight += cos(angle)/sin(angle);
                         //std::cout<<idx1<<" "<<idx2<<" "<<idx12<<" : "<<cos(angle)/sin(angle)<<endl;
                     }
-                    neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
+                    //neighbor_weight = (neighbor_weight > 0.1)? neighbor_weight : 0.1;
                     //neighbor_weight = 1;
                     //std::cout<<idx2<<" "<<neighbor_weight<<" | ";
                     center_weight += neighbor_weight;
@@ -602,9 +613,15 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                         SurfaceLineUp->GetPoint(idx1, pnew);
                         vtkMath::Subtract(pnew, pold, v);
                         int vidx2 = InvertIds[idx2];
+                        /*
                         b[vidx2*3] += 2*weight/2 *center_weight*neighbor_weights->GetValue(j) * v[0];
                         b[vidx2*3+1] += 2*weight/2 *center_weight*neighbor_weights->GetValue(j) * v[1];
                         b[vidx2*3+2] += 2*weight/2 *center_weight*neighbor_weights->GetValue(j) * v[2];
+                        */
+                        //testb
+                        b[vidx2*3] += -400;
+                        b[vidx2*3+1] += 0;
+                        b[vidx2*3+2] += 0;
                     }
                     else
                     {
@@ -618,9 +635,15 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
                                 SurfaceLineUp->GetPoint(idx2, pnew);
                                 vtkMath::Subtract(pnew, pold, v);
                                 int currentvidx = InvertIds[currentidx];
+                                /*
                                 b[currentvidx*3] += -2*weight/2 *neighbor_weights->GetValue(j) *neighbor_weights->GetValue(k) * v[0];
                                 b[currentvidx*3+1] += -2*weight/2 *neighbor_weights->GetValue(j) *neighbor_weights->GetValue(k) * v[1];
                                 b[currentvidx*3+2] += -2*weight/2 *neighbor_weights->GetValue(j) *neighbor_weights->GetValue(k) * v[2];
+                                */
+                                //testb
+                                b[currentvidx*3] += -400;
+                                b[currentvidx*3+1] += 0;
+                                b[currentvidx*3+2] = 0;
                             }
                         }
                     }
@@ -629,7 +652,8 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         }
     }
 
-    VisualizePoints(boundarypoints, 1, 0, 0, 10, t_rendermanager);
+    VisualizePoints(boundarypoints, 1, 0, 0, 5, t_rendermanager);
+
     free(marked);
     free(boundary);
 }

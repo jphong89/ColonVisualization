@@ -3323,7 +3323,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     }
 
     // test
-    /*
+
     for(int i=0; i< Sections->GetNumberOfIds(); i++)
     {
         if(Sections->GetId(i) != 0)
@@ -3331,7 +3331,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             Is_Fixed[i] = true;
         }
     }
-    */
+
     bool * marked = (bool*)malloc(t_colon->GetNumberOfPoints()*sizeof(bool));
     memset(marked, 0, t_colon->GetNumberOfPoints()*sizeof(bool));
     vtkSmartPointer<vtkIntArray> lines = vtkSmartPointer<vtkIntArray>::New();
@@ -3378,7 +3378,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         lines->GetTypedTuple(i, tuple);
         int idx1 = tuple[0];
         int idx2 = tuple[1];
-        if(GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds() == 1)
+        if(GetFacetsOfEdge(t_colon, idx1, idx2)->GetNumberOfIds() <= 1)
         {
             Is_Fixed[idx1] = true;
             Is_Fixed[idx2] = true;
@@ -3459,6 +3459,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     optimizedMapper->Update();
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
+    optimizedActor->GetProperty()->SetOpacity(0.5);
     //optimizedActor->GetProperty()->SetRepresentationToWireframe();
     //t_rendermanager->renderModel(optimizedActor);
 
@@ -3499,7 +3500,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v4(vtkSmartPointer<vtkDoubl
         if(i == 0)
         {
             model->GetPoint(0, point);
-            point[0] = point[0] + 60;
+            point[0] = point[0] + 100;
             binormal[0] = 0;
             binormal[1] = 0;
             binormal[2] = 1;
