@@ -4037,13 +4037,24 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDou
         else
         {
             appendFilter->RemoveAllInputs();
-            appendFilter->AddInputData(ResampledCircleGroup->GetMember(i-1));
-            appendFilter->AddInputData(ResampledCircleGroup->GetMember(i));
+            for(int k=-2; k <= 1; k++)
+            {
+                if( i + k >= 0 && i + k < model->GetNumberOfPoints())
+                {
+                    appendFilter->AddInputData(ResampledCircleGroup->GetMember(i + k));
+                }
+            }
             appendFilter->Update();
             source->DeepCopy(appendFilter->GetOutput());
+
             appendFilter->RemoveAllInputs();
-            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i-1));
-            appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i));
+            for(int k=-2; k <= 1; k++)
+            {
+                if( i + k >= 0 && i + k < model->GetNumberOfPoints())
+                {
+                    appendFilter->AddInputData(ResampledLineUpGroup->GetMember(i + k));
+                }
+            }
             appendFilter->Update();
             target->DeepCopy(appendFilter->GetOutput());
         }
@@ -4079,7 +4090,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDou
             sectionpoly->GetPoint(j, p);
             resultpoints->SetPoint(sectionids->GetId(j), p);
         }
-        //std::cout<<"section "<<i<<" "<<sectionpoly->GetNumberOfPoints()<<endl;
+        std::cout<<"section "<<i<<" "<<sectionpoly->GetNumberOfPoints()<<endl;
     }
     Result->DeepCopy(t_colon);
     Result->SetPoints(resultpoints);
