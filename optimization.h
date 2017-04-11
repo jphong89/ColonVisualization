@@ -8,8 +8,8 @@
 #include <vector>
 #include <omp.h>
 
-#define REGWEIGHT 0
-#define BENDWEIGHT 100
+#define REGWEIGHT 1
+#define BENDWEIGHT 10
 
 typedef Eigen::SparseMatrix<double> SpMat;
 typedef Eigen::Triplet<double> T;

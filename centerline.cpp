@@ -3304,7 +3304,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     SurfaceLineUpMapper->Update();
     vtkSmartPointer<vtkActor> SurfaceLineUpActor = vtkSmartPointer<vtkActor>::New();
     SurfaceLineUpActor->SetMapper(SurfaceLineUpMapper);
-    t_rendermanager->renderModel(SurfaceLineUpActor);
+    //t_rendermanager->renderModel(SurfaceLineUpActor);
     //t_filemanager->SaveFile(SurfaceLineUp, "SurfaceLineUp_v3_1.stl");
 
     // output a deformation file
@@ -3431,6 +3431,20 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     //
     // optimization
 
+    // test
+    vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+    //transform->RotateWXYZ(double angle, double x, double y, double z);
+    //transform->RotateWXYZ(180, 0, 1, 0);
+    transform->Translate(40, 0, 0);
+
+    vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter =
+            vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+
+    transformFilter->SetTransform(transform);
+    transformFilter->SetInputData(t_colon);
+    transformFilter->Update();
+    SurfaceLineUp->DeepCopy(transformFilter->GetOutput());
+
     vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
     OptimizedSurface = Optimize(t_colon, SurfaceLineUp, Is_Fixed, t_rendermanager);
 
@@ -3459,9 +3473,13 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     optimizedMapper->Update();
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
-    optimizedActor->GetProperty()->SetOpacity(0.5);
+    optimizedActor->GetProperty()->SetPointSize(6);
+    //optimizedActor->GetProperty()->SetColor(0,0,1);
+    optimizedActor->GetProperty()->SetOpacity(1);
+    //optimizedActor->GetProperty()->SetRepresentationToPoints();
+
     //optimizedActor->GetProperty()->SetRepresentationToWireframe();
-    //t_rendermanager->renderModel(optimizedActor);
+    t_rendermanager->renderModel(optimizedActor);
 
     t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
 
