@@ -3878,10 +3878,12 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDou
     //vtkSmartPointer<vtkDoubleArray> DeformationField = vtkSmartPointer<vtkDoubleArray>::New();
     for(vtkIdType i = 0; i < OriginCutCircle->GetNumberOfPoints(); i++)
     {
-        double p[3];
+        double p[3], dist2;
         CutCircleLineUp->GetPoint(i, p);
-        vtkIdType id = pointLocator->FindClosestPoint(p);
-        Is_Fixed[id] = true;
+        //vtkIdType id = pointLocator->FindClosestPoint(p);
+        vtkIdType id = pointLocator->FindClosestPointWithinRadius(1.5, p, dist2);
+        if(id >=0 && id < t_colon->GetNumberOfPoints())
+            Is_Fixed[id] = true;
     }
 
     // test
@@ -4036,8 +4038,9 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDou
         }
         else
         {
+            int range = 2;
             appendFilter->RemoveAllInputs();
-            for(int k=-2; k <= 1; k++)
+            for(int k=-range; k <= range-1; k++)
             {
                 if( i + k >= 0 && i + k < model->GetNumberOfPoints())
                 {
@@ -4048,7 +4051,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDou
             source->DeepCopy(appendFilter->GetOutput());
 
             appendFilter->RemoveAllInputs();
-            for(int k=-2; k <= 1; k++)
+            for(int k=-range; k <= range-1; k++)
             {
                 if( i + k >= 0 && i + k < model->GetNumberOfPoints())
                 {
@@ -4095,21 +4098,23 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDou
     Result->DeepCopy(t_colon);
     Result->SetPoints(resultpoints);
 
+    vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter = vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
+    smoothFilter->SetInputData(Result);
+    smoothFilter->SetNumberOfIterations(15);
+    smoothFilter->SetRelaxationFactor(0.1);
+    smoothFilter->FeatureEdgeSmoothingOff();
+    smoothFilter->BoundarySmoothingOn();
+    smoothFilter->Update();
+    Result = smoothFilter->GetOutput();
 
-    vtkSmartPointer<vtkPolyDataMapper> optimizedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    optimizedMapper->SetInputData(Result);
-    optimizedMapper->Update();
-    vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
-    optimizedActor->SetMapper(optimizedMapper);
-    optimizedActor->GetProperty()->SetPointSize(6);
-    //optimizedActor->GetProperty()->SetColor(0,0,1);
-    optimizedActor->GetProperty()->SetOpacity(1);
-    //optimizedActor->GetProperty()->SetRepresentationToPoints();
+    vtkSmartPointer<vtkPolyDataMapper> ResultMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    ResultMapper->SetInputData(Result);
+    ResultMapper->Update();
+    vtkSmartPointer<vtkActor> ResultActor = vtkSmartPointer<vtkActor>::New();
+    ResultActor->SetMapper(ResultMapper);
+    t_rendermanager->renderModel(ResultActor);
 
-    //optimizedActor->GetProperty()->SetRepresentationToWireframe();
-    t_rendermanager->renderModel(optimizedActor);
-
-    t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
+    t_filemanager->SaveFile(Result, "Result_v3_2.off");
 
 
     free(Is_Fixed);
