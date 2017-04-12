@@ -1604,7 +1604,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    return Deformation_v3_2(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
     //return NULL;
 }
@@ -3323,7 +3323,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     }
 
     // test
-
+    /*
     for(int i=0; i< Sections->GetNumberOfIds(); i++)
     {
         if(Sections->GetId(i) != 0)
@@ -3331,6 +3331,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             Is_Fixed[i] = true;
         }
     }
+    */
 
     bool * marked = (bool*)malloc(t_colon->GetNumberOfPoints()*sizeof(bool));
     memset(marked, 0, t_colon->GetNumberOfPoints()*sizeof(bool));
@@ -3432,6 +3433,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     // optimization
 
     // test
+    /*
     vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
     //transform->RotateWXYZ(double angle, double x, double y, double z);
     //transform->RotateWXYZ(180, 0, 1, 0);
@@ -3444,47 +3446,41 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     transformFilter->SetInputData(t_colon);
     transformFilter->Update();
     SurfaceLineUp->DeepCopy(transformFilter->GetOutput());
+    */
+
+    int NumberOfRegions = 0;
+    int* RegionIds = (int *)malloc(sizeof(int)*t_colon->GetNumberOfPoints());
+    for(int i=0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        RegionIds[i] = -1;
+    }
+    GetRegionIds(t_colon, Is_Fixed, RegionIds, &NumberOfRegions);
+    int count = 0;
+    for(int i=0; i < t_colon->GetNumberOfPoints(); i++)
+    {
+        if(RegionIds[i] > -0.5)
+        {
+            count++;
+        }
+    }
+    std::cout<<"count="<<count<<" NumberOfUnfixedRegions="<<NumberOfRegions<<endl;
+
 
     vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
     OptimizedSurface = Optimize(t_colon, SurfaceLineUp, Is_Fixed, t_rendermanager);
-
-    // exam the OptimizedSurface points
-    /*
-    for(int i=0; i < OptimizedSurface->GetNumberOfPoints(); i++)
-    {
-        double p[3];
-        OptimizedSurface->GetPoint(i, p);
-
-        if(isnan(p[0]) || isnan(p[1]) || isnan(p[2]))
-            continue;
-        else
-        {
-            //std::cout<<i<<" "<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
-            Is_Fixed[i] = true;
-        }
-    }
-
-    vtkSmartPointer<vtkPolyData> OptimizedSurface2 = vtkSmartPointer<vtkPolyData>::New();
-    OptimizedSurface2 = Optimize(t_colon, OptimizedSurface, Is_Fixed, t_rendermanager);
-    */
 
     vtkSmartPointer<vtkPolyDataMapper> optimizedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     optimizedMapper->SetInputData(OptimizedSurface);//
     optimizedMapper->Update();
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
-    optimizedActor->GetProperty()->SetPointSize(6);
-    //optimizedActor->GetProperty()->SetColor(0,0,1);
-    optimizedActor->GetProperty()->SetOpacity(1);
-    //optimizedActor->GetProperty()->SetRepresentationToPoints();
-
-    //optimizedActor->GetProperty()->SetRepresentationToWireframe();
     t_rendermanager->renderModel(optimizedActor);
 
     t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
 
 
     free(Is_Fixed);
+    free(RegionIds);
     delete CircleGroup;
     delete ResampledCircleGroup;
     delete ResampledLineUpGroup;
@@ -5833,4 +5829,48 @@ double Centerline::LorentzianInterpolationFactor(double l, double angle)
         return l;
     else
         return sin(l * angle) / sin(angle);
+}
+
+void Centerline::GetRegionIds(vtkPolyData *t_colon, bool *Is_Fixed, int *RegionIds, int *NumberOfRegions)
+{
+    NumberOfRegions[0] = 0;
+    int region = 0;
+    int N = t_colon->GetNumberOfPoints();
+    for(int i=0; i<N; i++)
+    {
+        if(!Is_Fixed[i] && RegionIds[i] == -1)
+        {
+            vtkSmartPointer<vtkIdList> currentlevel = vtkSmartPointer<vtkIdList>::New();
+            currentlevel->InsertNextId(i);
+            while(currentlevel->GetNumberOfIds() > 0)
+            {
+                vtkSmartPointer<vtkIdList> nextlevel = vtkSmartPointer<vtkIdList>::New();
+                for(int j=0; j < currentlevel->GetNumberOfIds(); j++)
+                {
+                    int id = currentlevel->GetId(j);
+                    assert(!Is_Fixed[id]);
+                    if(RegionIds[id] == -1)
+                    {
+                        RegionIds[id] = region;
+                        vtkSmartPointer<vtkIdList> ptids = vtkSmartPointer<vtkIdList>::New();
+                        ptids = GetConnectedVertices(t_colon, id);
+                        for(int k = 0; k < ptids->GetNumberOfIds(); k++)
+                        {
+                            int nbid = ptids->GetId(k);
+                            assert(nbid != id);
+                            if(!Is_Fixed[nbid] && RegionIds[nbid] == -1)
+                            {
+                                nextlevel->InsertNextId(nbid);
+                            }
+                        }
+                    }
+                    //std::cout<<endl;
+                }
+                currentlevel->Reset();
+                currentlevel->DeepCopy(nextlevel);
+            }
+            region++;
+        }
+    }
+    NumberOfRegions[0] = region;
 }

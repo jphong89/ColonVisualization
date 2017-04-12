@@ -63,10 +63,12 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
     }
     constructAandb(coefficientMap, b_c, t_colon, SurfaceLineUp, Is_Fixed, Ids, InvertIds, t_rendermanager);
 
+    /*
     for(int i=0; i < m; i++)
     {
         std::cout<<i<<" "<<b_c[i]<<endl;
     }
+    */
 
     // transform coefficientMap into a data structure that eigen recognizes
     std::vector<T> coefficients;
