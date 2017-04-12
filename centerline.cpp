@@ -3464,10 +3464,99 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         }
     }
     std::cout<<"count="<<count<<" NumberOfUnfixedRegions="<<NumberOfRegions<<endl;
+    // Affine Transform
+    vtkSmartPointer<vtkPolyData> OptimizationInitial = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPoints> OptimizationInitialPoints = vtkSmartPointer<vtkPoints>::New();
+    OptimizationInitial->DeepCopy(SurfaceLineUp);
+    OptimizationInitialPoints->DeepCopy(OptimizationInitial->GetPoints());
+    for(int i=0; i<NumberOfRegions; i++)
+    {
+        //std::cout<<"region "<<i<<endl;
+        vtkSmartPointer<vtkIdList> regionIds = vtkSmartPointer<vtkIdList>::New();
+        vtkSmartPointer<vtkPoints> regionPoints = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkIdList> sourceIds = vtkSmartPointer<vtkIdList>::New();
+        vtkSmartPointer<vtkPoints> sourcePoints = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkPoints> targetPoints = vtkSmartPointer<vtkPoints>::New();
+        for(int j=0; j<t_colon->GetNumberOfPoints(); j++)
+        {
+            if(RegionIds[j] == i)
+            {
+                double p[3];
+                t_colon->GetPoint(j, p);
+                regionIds->InsertNextId(j);
+                regionPoints->InsertNextPoint(p);
+                vtkSmartPointer<vtkIdList> ptids = vtkSmartPointer<vtkIdList>::New();
+                ptids = GetConnectedVertices(t_colon, j);
+                for(int k=0; k < ptids->GetNumberOfIds(); k++)
+                {
+                    int id = ptids->GetId(k);
+                    if(!Is_Fixed[id])
+                        continue;
 
+                    bool exist = false;
+
+                    for(int l=0; l < sourceIds->GetNumberOfIds(); l++)
+                    {
+                        if(sourceIds->GetId(l) == id)
+                        {
+                            exist = true;
+                            break;
+                        }
+                    }
+                    if(!exist)
+                    {
+                        double ps[3], pt[3];
+                        t_colon->GetPoint(id, ps);
+                        SurfaceLineUp->GetPoint(id, pt);
+
+                        sourceIds->InsertNextId(id);
+                        sourcePoints->InsertNextPoint(ps);
+                        targetPoints->InsertNextPoint(pt);
+                        regionIds->InsertNextId(id);
+                        regionPoints->InsertNextPoint(ps);
+                    }
+                }
+            }
+        }
+        vtkSmartPointer<vtkPolyData> regionPoly = vtkSmartPointer<vtkPolyData>::New();
+        regionPoly->SetPoints(regionPoints);
+        vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
+        vertexFilter->SetInputData(regionPoly);
+        vertexFilter->Update();
+        vtkSmartPointer<vtkLandmarkTransform> landmarkTransform = vtkSmartPointer<vtkLandmarkTransform>::New();
+        landmarkTransform->SetSourceLandmarks(sourcePoints);
+        landmarkTransform->SetTargetLandmarks(targetPoints);
+        landmarkTransform->SetModeToAffine();
+        landmarkTransform->Update();
+        vtkSmartPointer<vtkTransformFilter> transformFilter = vtkSmartPointer<vtkTransformFilter>::New();
+        transformFilter->SetTransform(landmarkTransform);
+        transformFilter->SetInputConnection(vertexFilter->GetOutputPort());
+        transformFilter->Update();
+        vtkSmartPointer<vtkPoints> affinePoints = vtkSmartPointer<vtkPoints>::New();
+        affinePoints = transformFilter->GetOutput()->GetPoints();
+
+        for(int i=0; i < affinePoints->GetNumberOfPoints(); i++)
+        {
+            double p[3];
+            int id = regionIds->GetId(i);
+            affinePoints->GetPoint(i, p);
+            OptimizationInitialPoints->SetPoint(id, p);
+        }
+        //VisualizePoints(affinePoints, 0, 1, 0, 7, t_rendermanager);
+    }
+    OptimizationInitial->SetPoints(OptimizationInitialPoints);
 
     vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
-    OptimizedSurface = Optimize(t_colon, SurfaceLineUp, Is_Fixed, t_rendermanager);
+    OptimizedSurface = Optimize(OptimizationInitial, SurfaceLineUp, Is_Fixed, t_rendermanager);
+
+    vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter = vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
+    smoothFilter->SetInputData(OptimizedSurface);
+    smoothFilter->SetNumberOfIterations(20);
+    smoothFilter->SetRelaxationFactor(0.1);
+    smoothFilter->FeatureEdgeSmoothingOff();
+    smoothFilter->BoundarySmoothingOn();
+    smoothFilter->Update();
+    OptimizedSurface->DeepCopy(smoothFilter->GetOutput());
 
     vtkSmartPointer<vtkPolyDataMapper> optimizedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     optimizedMapper->SetInputData(OptimizedSurface);//
@@ -3476,8 +3565,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     optimizedActor->SetMapper(optimizedMapper);
     t_rendermanager->renderModel(optimizedActor);
 
-    t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
-
+    t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface_v3_1.off");
 
     free(Is_Fixed);
     free(RegionIds);

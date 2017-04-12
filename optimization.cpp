@@ -70,6 +70,7 @@ vtkSmartPointer<vtkPolyData> Optimize(vtkSmartPointer<vtkPolyData> t_colon, vtkS
     }
     */
 
+
     // transform coefficientMap into a data structure that eigen recognizes
     std::vector<T> coefficients;
     coefficients.clear();
