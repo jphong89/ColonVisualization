@@ -2908,7 +2908,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 5; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape
+    int choice = 6; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
     double translate = 100;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -3144,26 +3144,27 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             }
             else
             {
+                normal[0] = -1; normal[1] = 0; normal[2] = 0;
                 if(i < 626)
                 {
-                    normal[0] = -1;
-                    normal[1] = 0;
-                    normal[2] = 0;
+                    tangent[0] = 0;
+                    tangent[1] = 1;
+                    tangent[2] = 0;
                 }
                 else if(i >= 706)
                 {
-                    normal[0] = 0;
-                    normal[1] = -1;
-                    normal[2] = 0;
+                    tangent[0] = 0;
+                    tangent[1] = 0;
+                    tangent[2] = 1;
                 }
                 else
                 {
                     double p = (S->GetValue(i) - S->GetValue(625))/(S->GetValue(706) - S->GetValue(625));
-                    normal[0] = -cos(3.1415926/2*p);
-                    normal[1] = -sin(3.1415926/2*p);
-                    normal[2] = 0;
+                    tangent[0] = 0;
+                    tangent[1] = cos(3.1415926/2*p);
+                    tangent[2] = sin(3.1415926/2*p);
                 }
-                vtkMath::Cross(normal, binormal, tangent);
+                vtkMath::Cross(tangent, normal, binormal);
             }
 
 
