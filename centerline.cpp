@@ -2905,9 +2905,11 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
                                                      vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                                      vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager *t_filemanager)
 {
+
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    bool straight = true;
+    int choice = 3; // 0-straight; 1-sin; 2-circle; 3-helix
+    double translate = 100;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
     double tangent[3], nexttangent[3];
@@ -2921,6 +2923,119 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkDoubleArray> NewBinormals = vtkSmartPointer<vtkDoubleArray>::New();
     NewBinormals->SetNumberOfComponents(3);
     vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+    for(int i=0; i<model->GetNumberOfPoints(); i++)
+    {
+        if(choice == 0)
+        {
+            if(i == 0)
+            {
+                model->GetPoint(0, point);
+                point[0] = point[0] + translate;
+                binormal[0] = 0;
+                binormal[1] = 0;
+                binormal[2] = 1;
+                normal[0] = 0;
+                normal[1] = 1;
+                normal[2] = 0;
+            }
+            ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+
+            tangent[0] = 1;
+            tangent[1] = 0;
+            tangent[2] = 0;
+
+            NewTangents->InsertNextTuple(tangent);
+            NewNormals->InsertNextTuple(normal);
+            NewBinormals->InsertNextTuple(binormal);
+
+            vtkMath::MultiplyScalar(tangent, ds);
+            vtkMath::Add(point, tangent, nextpoint);
+            newpoints->InsertNextPoint(point);
+            point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        }
+        else if(choice == 1)
+        {
+
+            if(i == 0)
+            {
+                model->GetPoint(0, point);
+                point[0] = point[0] + translate;
+                binormal[0] = 0;
+                binormal[1] = 0;
+                binormal[2] = 1;
+            }
+            ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+
+            double p = S->GetValue(i) / S->GetValue(model->GetNumberOfPoints()-1);
+            double x = cos(4*3.1415926*p)*sqrt(2)/2;
+            double y = sqrt(1-x*x);
+            normal[0] = x; normal[1] = y; normal[2] = 0;
+            vtkMath::Cross(normal, binormal, tangent);
+
+            NewTangents->InsertNextTuple(tangent);
+            NewNormals->InsertNextTuple(normal);
+            NewBinormals->InsertNextTuple(binormal);
+
+            vtkMath::MultiplyScalar(tangent, ds);
+            newpoints->InsertNextPoint(point);
+            vtkMath::Add(point, tangent, nextpoint);
+            point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        }
+        else if(choice == 2)
+        {
+
+            if(i == 0)
+            {
+                model->GetPoint(0, point);
+                point[0] = point[0] + translate;
+                binormal[0] = 0;
+                binormal[1] = 0;
+                binormal[2] = 1;
+            }
+            ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+
+            double p = S->GetValue(i) / S->GetValue(model->GetNumberOfPoints()-1);
+            double x = sin(2*3.1415926*p);
+            double y = cos(2*3.1415926*p);
+            tangent[0] = x; tangent[1] = y; tangent[2] = 0;
+            vtkMath::Cross(binormal, tangent, normal);
+
+            NewTangents->InsertNextTuple(tangent);
+            NewNormals->InsertNextTuple(normal);
+            NewBinormals->InsertNextTuple(binormal);
+
+            vtkMath::MultiplyScalar(tangent, ds);
+            newpoints->InsertNextPoint(point);
+            vtkMath::Add(point, tangent, nextpoint);
+            point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        }
+        else if(choice == 3)
+        {
+            double r = 30, c = 10, k=2;
+            if(i == 0)
+            {
+                model->GetPoint(0, point);
+                point[0] = point[0] + translate;
+            }
+            ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+
+            double p = S->GetValue(i) / S->GetValue(model->GetNumberOfPoints()-1);
+            tangent[0] = -r*sin(2*k*3.1415926*p); tangent[1] = r*cos(2*k*3.1415926*p); tangent[2] = c;
+            vtkMath::Normalize(tangent);
+            normal[0] = -cos(2*k*3.1415926*p); normal[1] = -sin(2*k*3.1415926*p); normal[2] = 0;
+            vtkMath::Cross(tangent, normal, binormal);
+
+            NewTangents->InsertNextTuple(tangent);
+            NewNormals->InsertNextTuple(normal);
+            NewBinormals->InsertNextTuple(binormal);
+
+            vtkMath::MultiplyScalar(tangent, ds);
+            newpoints->InsertNextPoint(point);
+            vtkMath::Add(point, tangent, nextpoint);
+            point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        }
+    }
+    /*
     for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
     {
         if(i == 0)
@@ -2945,6 +3060,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         NewNormals->InsertNextTuple(normal);
         NewBinormals->InsertNextTuple(binormal);
 
+
         double dnormal[3];
         if(straight)
         {
@@ -2958,6 +3074,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         }
         vtkMath::Add(normal, dnormal, nextnormal);
         vtkMath::Normalize(nextnormal);
+
         //std::cout<<i<<"\ts="<<S->GetValue(i)<<"("<<ds<<")"<<"\tk="<<curvature<<endl;
         vtkMath::Cross(nextnormal, binormal, nexttangent);
         vtkMath::Normalize(nexttangent);
@@ -2969,6 +3086,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         normal[0] = nextnormal[0]; normal[1] = nextnormal[1]; normal[2] = nextnormal[2];
         tangent[0] = nexttangent[0]; tangent[1] = nexttangent[1]; tangent[2] = nexttangent[2];
     }
+    */
 
     vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
     newcenterline->SetPoints(newpoints);
@@ -3563,6 +3681,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     optimizedMapper->Update();
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
+    optimizedActor->GetProperty()->SetOpacity(0.5);
     t_rendermanager->renderModel(optimizedActor);
 
     t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface_v3_1.off");
