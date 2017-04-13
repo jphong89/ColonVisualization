@@ -2908,7 +2908,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 3; // 0-straight; 1-sin; 2-circle; 3-helix
+    int choice = 0; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist
     double translate = 100;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -2925,6 +2925,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
     for(int i=0; i<model->GetNumberOfPoints(); i++)
     {
+        double stretch = 0.5;
         if(choice == 0)
         {
             if(i == 0)
@@ -2939,6 +2940,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
                 normal[2] = 0;
             }
             ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+            ds = ds*stretch;
 
             tangent[0] = 1;
             tangent[1] = 0;
@@ -3032,6 +3034,34 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             vtkMath::MultiplyScalar(tangent, ds);
             newpoints->InsertNextPoint(point);
             vtkMath::Add(point, tangent, nextpoint);
+            point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        }
+        if(choice == 4)
+        {
+            double k=8;
+            double stretch = 1;
+            if(i == 0)
+            {
+                model->GetPoint(0, point);
+                point[0] = point[0] + translate;
+            }
+            ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+            ds = ds*stretch;
+
+            tangent[0] = 1;
+            tangent[1] = 0;
+            tangent[2] = 0;
+            double p = S->GetValue(i) / S->GetValue(model->GetNumberOfPoints()-1);
+            normal[0] = 0; normal[1] = cos(2*k*3.1415926*p); normal[2] = sin(2*k*3.1415926*p);
+            vtkMath::Cross(tangent, normal, binormal);
+
+            NewTangents->InsertNextTuple(tangent);
+            NewNormals->InsertNextTuple(normal);
+            NewBinormals->InsertNextTuple(binormal);
+
+            vtkMath::MultiplyScalar(tangent, ds);
+            vtkMath::Add(point, tangent, nextpoint);
+            newpoints->InsertNextPoint(point);
             point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
         }
     }
