@@ -2908,7 +2908,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 0; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist
+    int choice = 5; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape
     double translate = 100;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -2925,7 +2925,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
     for(int i=0; i<model->GetNumberOfPoints(); i++)
     {
-        double stretch = 0.5;
+        double stretch = 1;
         if(choice == 0)
         {
             if(i == 0)
@@ -3054,6 +3054,49 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             double p = S->GetValue(i) / S->GetValue(model->GetNumberOfPoints()-1);
             normal[0] = 0; normal[1] = cos(2*k*3.1415926*p); normal[2] = sin(2*k*3.1415926*p);
             vtkMath::Cross(tangent, normal, binormal);
+
+            NewTangents->InsertNextTuple(tangent);
+            NewNormals->InsertNextTuple(normal);
+            NewBinormals->InsertNextTuple(binormal);
+
+            vtkMath::MultiplyScalar(tangent, ds);
+            vtkMath::Add(point, tangent, nextpoint);
+            newpoints->InsertNextPoint(point);
+            point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        }
+        else if(choice == 5)
+        {
+            if(i == 0)
+            {
+                model->GetPoint(0, point);
+                point[0] = point[0] + translate;
+                binormal[0] = 0;
+                binormal[1] = 0;
+                binormal[2] = 1;
+            }
+            ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+
+            if(i < 450)
+            {
+                tangent[0] = 1;
+                tangent[1] = 0;
+                tangent[2] = 0;
+            }
+            else if(i >= 550)
+            {
+                tangent[0] = 0;
+                tangent[1] = 1;
+                tangent[2] = 0;
+            }
+            else
+            {
+                double p = (S->GetValue(i) - S->GetValue(449))/(S->GetValue(550) - S->GetValue(449));
+                tangent[0] = cos(3.1415926/2*p);
+                tangent[1] = sin(3.1415926/2*p);
+                tangent[2] = 0;
+            }
+            vtkMath::Cross(binormal, tangent, normal);
+
 
             NewTangents->InsertNextTuple(tangent);
             NewNormals->InsertNextTuple(normal);
