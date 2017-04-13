@@ -3107,6 +3107,75 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             newpoints->InsertNextPoint(point);
             point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
         }
+        else if(choice == 6)
+        {
+            if(i == 0)
+            {
+                model->GetPoint(0, point);
+                point[0] = point[0] + translate;
+                binormal[0] = 0;
+                binormal[1] = 0;
+                binormal[2] = 1;
+            }
+            ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
+
+            if(i < 500)
+            {
+                if(i < 293)
+                {
+                    tangent[0] = 1;
+                    tangent[1] = 0;
+                    tangent[2] = 0;
+                }
+                else if(i >= 293 && i < 373)
+                {
+                    double p = (S->GetValue(i) - S->GetValue(292))/(S->GetValue(373) - S->GetValue(292));
+                    tangent[0] = cos(3.1415926/2*p);
+                    tangent[1] = sin(3.1415926/2*p);
+                    tangent[2] = 0;
+                }
+                else
+                {
+                    tangent[0] = 0;
+                    tangent[1] = 1;
+                    tangent[0] = 0;
+                }
+                vtkMath::Cross(binormal, tangent, normal);
+            }
+            else
+            {
+                if(i < 626)
+                {
+                    normal[0] = -1;
+                    normal[1] = 0;
+                    normal[2] = 0;
+                }
+                else if(i >= 706)
+                {
+                    normal[0] = 0;
+                    normal[1] = -1;
+                    normal[2] = 0;
+                }
+                else
+                {
+                    double p = (S->GetValue(i) - S->GetValue(625))/(S->GetValue(706) - S->GetValue(625));
+                    normal[0] = -cos(3.1415926/2*p);
+                    normal[1] = -sin(3.1415926/2*p);
+                    normal[2] = 0;
+                }
+                vtkMath::Cross(normal, binormal, tangent);
+            }
+
+
+            NewTangents->InsertNextTuple(tangent);
+            NewNormals->InsertNextTuple(normal);
+            NewBinormals->InsertNextTuple(binormal);
+
+            vtkMath::MultiplyScalar(tangent, ds);
+            vtkMath::Add(point, tangent, nextpoint);
+            newpoints->InsertNextPoint(point);
+            point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
+        }
     }
     /*
     for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
