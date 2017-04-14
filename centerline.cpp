@@ -1353,7 +1353,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> IllCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     IllCutCirclesActor->SetMapper(IllCutCirclesMapper);
     IllCutCirclesActor->GetProperty()->SetColor(1, 0, 0);
-    t_rendermanager->renderModel(IllCutCirclesActor);
+    //t_rendermanager->renderModel(IllCutCirclesActor);
 
     // visualize the normal cut circles
     vtkSmartPointer<vtkPolyDataMapper> NormalCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -1362,7 +1362,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkActor> NormalCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     NormalCutCirclesActor->SetMapper(NormalCutCirclesMapper);
     NormalCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
-    t_rendermanager->renderModel(NormalCutCirclesActor);
+    //t_rendermanager->renderModel(NormalCutCirclesActor);
 
     // visualize the violation points
     /*
@@ -3411,7 +3411,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     OriginCutCircleMapper->Update();
     vtkSmartPointer<vtkActor> OriginCutCircleActor = vtkSmartPointer<vtkActor>::New();
     OriginCutCircleActor->SetMapper(OriginCutCircleMapper);
-    OriginCutCircleActor->GetProperty()->SetColor(0, 0, 1);
+    OriginCutCircleActor->GetProperty()->SetColor(0, 0.5, 1);
+    OriginCutCircleActor->GetProperty()->SetLineWidth(3);
     t_rendermanager->renderModel(OriginCutCircleActor);
 
     vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -3676,19 +3677,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             fixedPoints->InsertNextPoint(q);
         }
     }
-    vtkSmartPointer<vtkPolyData> fixedPoly = vtkSmartPointer<vtkPolyData>::New();
-    fixedPoly->SetPoints(fixedPoints);
-    vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
-    vertexFilter->SetInputData(fixedPoly);
-    vertexFilter->Update();
-    vtkSmartPointer<vtkPolyDataMapper> fixedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    fixedMapper->SetInputConnection(vertexFilter->GetOutputPort());
-    fixedMapper->Update();
-    vtkSmartPointer<vtkActor> fixedActor = vtkSmartPointer<vtkActor>::New();
-    fixedActor->SetMapper(fixedMapper);
-    fixedActor->GetProperty()->SetPointSize(5);
-    fixedActor->GetProperty()->SetColor(1,1,0);
-    t_rendermanager->renderModel(fixedActor);
+
+    //VisualizePoints(fixedPoints, 1, 1, 0, 5, t_rendermanager);
 
     //
     // optimization

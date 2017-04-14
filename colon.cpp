@@ -2,7 +2,7 @@
 #include <iostream>
 Colon::Colon()
 {
-    actor->GetProperty()->SetOpacity(1);
+    actor->GetProperty()->SetOpacity(0.5);
     //actor->GetProperty()->SetRepresentationToWireframe();
     //std::cout<<"Colon Opacity: "<<actor->GetProperty()->GetOpacity()<<endl;
 }

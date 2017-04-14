@@ -664,7 +664,7 @@ void constructAandb(std::map<vtkIdType, double> &coefficientMap, double *b,
         }
     }
 
-    VisualizePoints(boundarypoints, 1, 0, 0, 5, t_rendermanager);
+    //VisualizePoints(boundarypoints, 1, 0, 0, 5, t_rendermanager);
 
     free(marked);
     free(boundary);
