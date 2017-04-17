@@ -1563,7 +1563,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         model->GetPoint(i, x);
         double lastr[3], lastt[3];
         RefDirections->GetTuple(i-1, lastr);
-        Tangents->GetTuple(i-1, lastt);
+        PlaneNormals->GetTuple(i-1, lastt);
 
         vtkMath::Subtract(x, lastx, v1);
         double c1 = vtkMath::Dot(v1, v1);
@@ -1577,7 +1577,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Subtract(lastt, v1t, tL);
 
         double t[3], v2[3], v2r[3];
-        Tangents->GetTuple(i, t);
+        PlaneNormals->GetTuple(i, t);
         vtkMath::Subtract(t, tL, v2);
         double c2 = vtkMath::Dot(v2, v2);
         double c2r = 2/c2 * vtkMath::Dot(v2, rL);
@@ -2958,7 +2958,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 6; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
+    int choice = 3; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
     double translate = 100;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];

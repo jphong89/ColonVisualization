@@ -21,7 +21,6 @@ SOURCES += main.cpp\
     rendermanager.cpp \
     showselectedwindow.cpp \
     genesyndata.cpp \
-    lightdialog.cpp \
     vtkpolydatagroup.cpp \
     optimization.cpp
 
@@ -33,7 +32,6 @@ HEADERS  += mainwindow.h \
     rendermanager.h \
     showselectedwindow.h \
     genesyndata.h \
-    lightdialog.h \
     vtkpolydatagroup.h \
     optimization.h
 
@@ -52,5 +50,4 @@ INCLUDEPATH += /usr/local/include/vtk-7.1 \
                ./eigen
 
 FORMS    += mainwindow.ui \
-    showselectedwindow.ui \
-    lightdialog.ui
+    showselectedwindow.ui

@@ -9,7 +9,6 @@
 #include "colon.h"
 #include "rendermanager.h"
 #include "showselectedwindow.h"
-#include "lightdialog.h"
 #include "genesyndata.h"
 #include <QVTKWidget.h>
 #include <vtkTransform.h>
@@ -63,10 +62,6 @@ private slots:
 
     void on_actionLoad_Centerline_triggered();
 
-    void on_action_Computing_triggered();
-
-    void on_actionLighting_triggered();
-
     void on_action_Deform_Colon_triggered(bool test = false);
 
 private:
@@ -78,10 +73,6 @@ private:
     QTimer *m_timer;
 
     ShowSelectedWindow m_showselectedwindow;
-
-    lightDialog m_lightdialog;
-
-    vtkLightCollection* m_originalLights;
 };
 
 #endif // MAINWINDOW_H

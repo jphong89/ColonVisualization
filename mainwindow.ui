@@ -42,9 +42,7 @@
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="actionLighting"/>
     <addaction name="actionLoad_Centerline"/>
-    <addaction name="action_Computing"/>
     <addaction name="action_Deform_Colon"/>
    </widget>
    <addaction name="menuFiles"/>
@@ -61,22 +59,12 @@
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionNew_file">
    <property name="text">
-    <string>New file</string>
-   </property>
-  </action>
-  <action name="actionLighting">
-   <property name="text">
-    <string>&amp;Lighting</string>
+    <string>&amp;New file</string>
    </property>
   </action>
   <action name="actionLoad_Centerline">
    <property name="text">
     <string>&amp;Load Centerline</string>
-   </property>
-  </action>
-  <action name="action_Computing">
-   <property name="text">
-    <string>&amp;Computing</string>
    </property>
   </action>
   <action name="action_Deform_Colon">
