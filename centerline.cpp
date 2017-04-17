@@ -1526,7 +1526,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     */
 
     // Calculate the Reference Directions
-
+/*
     vtkSmartPointer<vtkDoubleArray> RefDirections = vtkSmartPointer<vtkDoubleArray>::New();
 
     RefDirections->SetNumberOfComponents(3);
@@ -1547,6 +1547,56 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         lastDirection[1] = projection[1];
         lastDirection[2] = projection[2];
     }
+*/
+    // Rotation minimization frames
+
+    vtkSmartPointer<vtkDoubleArray> RefDirections = vtkSmartPointer<vtkDoubleArray>::New();
+    vtkSmartPointer<vtkPoints> EndPoints = vtkSmartPointer<vtkPoints>::New();
+    EndPoints->SetNumberOfPoints(model->GetNumberOfPoints());
+    EndPoints->SetPoint(0, model->GetPoint(0));
+    RefDirections->SetNumberOfComponents(3);
+    RefDirections->InsertNextTuple(Normals->GetTuple(0));
+    for(vtkIdType i = 1; i < model->GetNumberOfPoints(); i++)
+    {
+        double lastx[3], x[3], v1[3], v1r[3], v1t[3];
+        model->GetPoint(i-1, lastx);
+        model->GetPoint(i, x);
+        double lastr[3], lastt[3];
+        RefDirections->GetTuple(i-1, lastr);
+        Tangents->GetTuple(i-1, lastt);
+
+        vtkMath::Subtract(x, lastx, v1);
+        double c1 = vtkMath::Dot(v1, v1);
+        double c1r = 2/c1 * vtkMath::Dot(v1, lastr);
+        double c1t = 2/c1 * vtkMath::Dot(v1, lastt);
+        v1r[0] = c1r * v1[0]; v1r[1] = c1r * v1[1]; v1r[2] = c1r * v1[2];
+        v1t[0] = c1t * v1[0]; v1t[1] = c1t * v1[1]; v1t[2] = c1t * v1[2];
+
+        double rL[3], tL[3];
+        vtkMath::Subtract(lastr, v1r, rL);
+        vtkMath::Subtract(lastt, v1t, tL);
+
+        double t[3], v2[3], v2r[3];
+        Tangents->GetTuple(i, t);
+        vtkMath::Subtract(t, tL, v2);
+        double c2 = vtkMath::Dot(v2, v2);
+        double c2r = 2/c2 * vtkMath::Dot(v2, rL);
+        v2r[0] = c2r * v2[0]; v2r[1] = c2r * v2[1]; v2r[2] = c2r * v2[2];
+
+        double r[3];
+        vtkMath::Subtract(rL, v2r, r);
+        RefDirections->InsertNextTuple(r);
+
+        // visualize the end points
+        double end[3], cp[3], et[3];
+        model->GetPoint(i, cp);
+        RefDirections->GetTuple(i, et);
+        vtkMath::MultiplyScalar(et, 15);
+        vtkMath::Add(cp, et, end);
+        EndPoints->SetPoint(i, end);
+    }
+    VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
+
     /* // Use Lorentzian Interpolation to align the cross sections
     vtkSmartPointer<vtkDoubleArray> InterpolatedRefDirections = vtkSmartPointer<vtkDoubleArray>::New();
     vtkSmartPointer<vtkPoints> EndPoints = vtkSmartPointer<vtkPoints>::New();
