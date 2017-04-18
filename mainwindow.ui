@@ -20,44 +20,60 @@
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
      <widget class="QVTKWidget" name="left" native="true">
-      <widget class="QCheckBox" name="tracer">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>440</y>
-         <width>223</width>
-         <height>21</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Tracer</string>
-       </property>
-      </widget>
+      <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="tracer">
+         <property name="text">
+          <string>Tracer</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
       <zorder>right</zorder>
       <zorder>tracer</zorder>
+      <zorder>verticalSpacer</zorder>
      </widget>
     </item>
     <item>
      <widget class="QVTKWidget" name="right" native="true">
-      <widget class="QCheckBox" name="checkBox">
-       <property name="geometry">
-        <rect>
-         <x>310</x>
-         <y>440</y>
-         <width>85</width>
-         <height>21</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Tracer_inv</string>
-       </property>
-      </widget>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkBox">
+         <property name="text">
+          <string>Tracer_inv</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
    </layout>
-   <zorder>left</zorder>
-   <zorder>right</zorder>
-   <zorder>tracer</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
