@@ -17,29 +17,14 @@
    <property name="enabled">
     <bool>true</bool>
    </property>
-   <widget class="QVTKWidget" name="left" native="true">
-    <property name="geometry">
-     <rect>
-      <x>9</x>
-      <y>9</y>
-      <width>341</width>
-      <height>441</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QVTKWidget" name="right" native="true">
-    <property name="geometry">
-     <rect>
-      <x>349</x>
-      <y>9</y>
-      <width>341</width>
-      <height>441</height>
-     </rect>
-    </property>
-   </widget>
-   <zorder>left</zorder>
-   <zorder>verticalLayoutWidget</zorder>
-   <zorder>right</zorder>
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QVTKWidget" name="left" native="true"/>
+    </item>
+    <item>
+     <widget class="QVTKWidget" name="right" native="true"/>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
