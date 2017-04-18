@@ -70,6 +70,7 @@ private:
     Centerline *m_centerline;
     Colon *m_colon;
     RenderManager *m_rendermanager;
+    RenderManager *m_rendermanager_right;
     QTimer *m_timer;
 
     ShowSelectedWindow m_showselectedwindow;

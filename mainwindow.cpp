@@ -10,9 +10,12 @@ MainWindow::MainWindow(QWidget *parent) :
     m_centerline = new Centerline;
     m_colon = new Colon;
     m_rendermanager = new RenderManager;
+    m_rendermanager_right = new RenderManager;
 
-    QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
-    widget->GetRenderWindow()->AddRenderer(m_rendermanager->GetRender());
+    QVTKWidget* left = this->findChild<QVTKWidget*>("left");
+    left->GetRenderWindow()->AddRenderer(m_rendermanager->GetRender());
+    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+    right->GetRenderWindow()->AddRenderer(m_rendermanager_right->GetRender());
 }
 
 MainWindow::~MainWindow()
@@ -22,6 +25,7 @@ MainWindow::~MainWindow()
     delete m_centerline;
     delete m_colon;
     delete m_rendermanager;
+    delete m_rendermanager_right;
 }
 void MainWindow::addlight()
 {
@@ -69,8 +73,10 @@ void MainWindow::on_actionNew_file_triggered()
 
 
     m_rendermanager->renderModel(m_colon->GetActor());
-    QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
-    widget->GetRenderWindow()->Render();
+    QVTKWidget* left = this->findChild<QVTKWidget*>("left");
+    left->GetRenderWindow()->Render();
+    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+    right->GetRenderWindow()->Render();
 }
 
 // centerline and colon deformation are done in this function
@@ -98,13 +104,16 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     */
 
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
-    newColonPoly = m_centerline->EliminateTorsion(m_rendermanager, m_colon->GetOutput(), m_filemanager);
+    newColonPoly = m_centerline->EliminateTorsion(m_rendermanager,m_rendermanager_right, m_colon->GetOutput(), m_filemanager);
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");
     //m_colon->SetPoint(newColonPoly->GetPoints());
     m_rendermanager->renderModel(m_centerline->GetActor());
 
-    QVTKWidget* widget = this->findChild<QVTKWidget*>("qvtk");
-    widget->GetRenderWindow()->Render();
+
+    QVTKWidget* left = this->findChild<QVTKWidget*>("left");
+    left->GetRenderWindow()->Render();
+    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+    right->GetRenderWindow()->Render();
 }
 
 // Give two points on colon surface, find the geodesic path between them.

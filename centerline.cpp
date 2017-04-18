@@ -942,7 +942,7 @@ void VisualizePoints(vtkSmartPointer<vtkPoints> points, double r, double g, doub
     t_rendermanager->renderModel(pointsActor);
 }
 
-vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon, FileManager *t_filemanager)
+vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rendermanager, RenderManager *t_rendermanager_right, vtkSmartPointer<vtkPolyData> t_colon, FileManager *t_filemanager)
 {
     bool use_spline = true;  // whether use spline
     double stepSize = 0.0005;
@@ -1654,7 +1654,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
+    return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, t_rendermanager_right, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
     //return NULL;
 }
@@ -2951,7 +2951,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3(vtkSmartPointer<vtkDoubl
 }
 vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
                                                      vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
-                                                     vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                                     vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager, RenderManager *t_rendermanager_right,
                                                      vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                                      vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager *t_filemanager)
 {
@@ -3290,7 +3290,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
     vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
     newActor->SetMapper(newMapper);
-    t_rendermanager->renderModel(newActor);
+    t_rendermanager_right->renderModel(newActor);
 
     // Line Up the Cross Sections
     vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
@@ -3471,7 +3471,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
     CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
-    t_rendermanager->renderModel(CutCircleLineUpActor);
+    t_rendermanager_right->renderModel(CutCircleLineUpActor);
 
     // deformation of surface begin
     // place the seed
@@ -3714,21 +3714,23 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     */
     //
     //visualize the fixed points
-
+    /*
     vtkSmartPointer<vtkPoints> fixedPoints = vtkSmartPointer<vtkPoints>::New();
-    for(vtkIdType i = 1; i < t_colon->GetNumberOfPoints(); i++)
+    vtkSmartPointer<vtkPoints> fixedPoints_mapped = vtkSmartPointer<vtkPoints>::New();
+    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
     {
         if(Is_Fixed[i])
         {
             double p[3], q[3];
             SurfaceLineUp->GetPoint(i, p);
-            fixedPoints->InsertNextPoint(p);
+            fixedPoints_mapped->InsertNextPoint(p);
             t_colon->GetPoint(i, q);
             fixedPoints->InsertNextPoint(q);
         }
     }
-
-    //VisualizePoints(fixedPoints, 1, 1, 0, 5, t_rendermanager);
+    VisualizePoints(fixedPoints, 1, 1, 0, 5, t_rendermanager);
+    VisualizePoints(fixedPoints_mapped, 1, 1, 0, 5, t_rendermanager_right);
+    */
 
     //
     // optimization
@@ -3843,7 +3845,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             affinePoints->GetPoint(i, p);
             OptimizationInitialPoints->SetPoint(id, p);
         }
-        //VisualizePoints(affinePoints, 0, 1, 0, 7, t_rendermanager);
     }
     OptimizationInitial->SetPoints(OptimizationInitialPoints);
 
@@ -3865,7 +3866,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
     optimizedActor->GetProperty()->SetOpacity(0.5);
-    t_rendermanager->renderModel(optimizedActor);
+    t_rendermanager_right->renderModel(optimizedActor);
 
     t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface_v3_1.off");
 
@@ -3875,7 +3876,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     delete ResampledCircleGroup;
     delete ResampledLineUpGroup;
     std::cout<<"Deformation End"<<endl;
-    return SurfaceLineUp;
+    return OptimizedSurface;
 }
 vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
                                                      vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,

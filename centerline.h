@@ -65,7 +65,7 @@ public:
     void PutNormalsOnSameSide(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures);
     double splineTorsion(vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize);
 
-    vtkSmartPointer<vtkPolyData> EliminateTorsion(RenderManager* t_rendermanager, vtkSmartPointer<vtkPolyData> t_colon, FileManager* t_filemanager);
+    vtkSmartPointer<vtkPolyData> EliminateTorsion(RenderManager* t_rendermanager,RenderManager* t_rendermanager_right, vtkSmartPointer<vtkPolyData> t_colon, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> Deformation(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
@@ -83,7 +83,7 @@ public:
                                              vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> Deformation_v3_1(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
-                                             vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,
+                                             vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager, RenderManager *t_rendermanager_right,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
                                              vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
     vtkSmartPointer<vtkPolyData> Deformation_v3_2(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
