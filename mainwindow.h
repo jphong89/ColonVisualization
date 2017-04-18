@@ -42,6 +42,22 @@
 #include <vtkLightActor.h>
 #include "vtkpolydatagroup.h"
 
+#include <vtkSmartPointer.h>
+#include <vtkCallbackCommand.h>
+#include <vtkImageActor.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkActor.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkPolyData.h>
+#include <vtkSphereSource.h>
+#include <vtkImageTracerWidget.h>
+#include <vtkImageMapper3D.h>
+#include <vtkImageCanvasSource2D.h>
+#include <vtkInteractorStyleImage.h>
+#include <vtkProperty.h>
+
 namespace Ui {
 class MainWindow;
 }
@@ -56,6 +72,16 @@ public:
     void addlight();
     vtkSmartPointer<vtkPolyData> GeodesicPath(vtkSmartPointer<vtkPolyData> points);
     vtkSmartPointer<vtkPolyData> Upsampling(vtkSmartPointer<vtkPolyData> path);
+    RenderManager* GetRenderManager(int side = 0)
+    {
+        if(side == 0) return m_rendermanager;
+        else return m_rendermanager_right;
+    }
+    Colon* GetData(int side = 0)
+    {
+        if(side == 0) return m_colon;
+        else return m_colon_new;
+    }
 
 private slots:
     void on_actionNew_file_triggered();
@@ -64,14 +90,24 @@ private slots:
 
     void on_action_Deform_Colon_triggered(bool test = false);
 
+    void on_tracer_toggled(bool checked);
+
+    void on_action_Load_Deformed_Surface_triggered();
+
+    void on_checkBox_toggled(bool checked);
+
 private:
     Ui::MainWindow *ui;
     FileManager * m_filemanager;
     Centerline *m_centerline;
     Colon *m_colon;
+    Colon *m_colon_new;
     RenderManager *m_rendermanager;
     RenderManager *m_rendermanager_right;
     QTimer *m_timer;
+
+    vtkSmartPointer<vtkImageTracerWidget> tracer;
+    vtkSmartPointer<vtkImageTracerWidget> tracer_inverse;
 
     ShowSelectedWindow m_showselectedwindow;
 };

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>700</width>
-    <height>503</height>
+    <width>843</width>
+    <height>542</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,19 +19,52 @@
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="QVTKWidget" name="left" native="true"/>
+     <widget class="QVTKWidget" name="left" native="true">
+      <widget class="QCheckBox" name="tracer">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>440</y>
+         <width>223</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Tracer</string>
+       </property>
+      </widget>
+      <zorder>right</zorder>
+      <zorder>tracer</zorder>
+     </widget>
     </item>
     <item>
-     <widget class="QVTKWidget" name="right" native="true"/>
+     <widget class="QVTKWidget" name="right" native="true">
+      <widget class="QCheckBox" name="checkBox">
+       <property name="geometry">
+        <rect>
+         <x>310</x>
+         <y>440</y>
+         <width>85</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Tracer_inv</string>
+       </property>
+      </widget>
+     </widget>
     </item>
    </layout>
+   <zorder>left</zorder>
+   <zorder>right</zorder>
+   <zorder>tracer</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>700</width>
+     <width>843</width>
      <height>20</height>
     </rect>
    </property>
@@ -40,6 +73,7 @@
      <string>Files</string>
     </property>
     <addaction name="actionNew_file"/>
+    <addaction name="action_Load_Deformed_Surface"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -73,6 +107,11 @@
   <action name="action_Deform_Colon">
    <property name="text">
     <string>&amp;Deform Colon</string>
+   </property>
+  </action>
+  <action name="action_Load_Deformed_Surface">
+   <property name="text">
+    <string>&amp;Load Deformed Surface</string>
    </property>
   </action>
  </widget>

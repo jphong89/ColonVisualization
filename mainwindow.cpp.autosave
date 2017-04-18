@@ -43,8 +43,6 @@ void CallbackFunction (vtkObject* caller,
       VisualizePoints(points1, 1, 1, 0, 5, t_window->GetRenderManager(0));
       VisualizePoints(points2, 1, 1, 0, 5, t_window->GetRenderManager(1));
 
-      t_window->GetRenderManager(0)->GetRender()->RemoveActor(t_window->GetData(0)->GetActor());
-
       QVTKWidget* left = t_window->findChild<QVTKWidget*>("left");
       left->GetRenderWindow()->Render();
       QVTKWidget* right = t_window->findChild<QVTKWidget*>("right");

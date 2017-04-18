@@ -2959,7 +2959,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
     int choice = 3; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
-    double translate = 100;
+    double translate = 0;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
     double tangent[3], nexttangent[3];
@@ -3463,7 +3463,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     OriginCutCircleActor->SetMapper(OriginCutCircleMapper);
     OriginCutCircleActor->GetProperty()->SetColor(0, 0.5, 1);
     OriginCutCircleActor->GetProperty()->SetLineWidth(3);
-    t_rendermanager->renderModel(OriginCutCircleActor);
+    //t_rendermanager->renderModel(OriginCutCircleActor);
 
     vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
@@ -3471,7 +3471,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
     CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
-    t_rendermanager_right->renderModel(CutCircleLineUpActor);
+    //t_rendermanager_right->renderModel(CutCircleLineUpActor);
 
     // deformation of surface begin
     // place the seed
@@ -3488,19 +3488,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     std::cout<<"Seed Point ID: "<<seed<<std::endl;
     vtkSmartPointer<vtkPoints> seedpoints = vtkSmartPointer<vtkPoints>::New();
     seedpoints->InsertNextPoint(pseed);
-    vtkSmartPointer<vtkPolyData> seedpoly = vtkSmartPointer<vtkPolyData>::New();
-    seedpoly->SetPoints(seedpoints);
-    vtkSmartPointer<vtkVertexGlyphFilter> seedVertex = vtkSmartPointer<vtkVertexGlyphFilter>::New();
-    seedVertex->SetInputData(seedpoly);
-    seedVertex->Update();
-    vtkSmartPointer<vtkPolyDataMapper> seedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    seedMapper->SetInputConnection(seedVertex->GetOutputPort());
-    seedMapper->Update();
-    vtkSmartPointer<vtkActor> seedActor = vtkSmartPointer<vtkActor>::New();
-    seedActor->SetMapper(seedMapper);
-    seedActor->GetProperty()->SetPointSize(10);
-    seedActor->GetProperty()->SetColor(0,1,0);
-    t_rendermanager->renderModel(seedActor); // place the seed
+    //VisualizePoints(seedpoints, 0, 1, 0, 10, t_rendermanager);
 
     vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
     points->SetNumberOfPoints(t_colon->GetNumberOfPoints());
@@ -3866,7 +3854,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkActor> optimizedActor = vtkSmartPointer<vtkActor>::New();
     optimizedActor->SetMapper(optimizedMapper);
     optimizedActor->GetProperty()->SetOpacity(0.5);
-    t_rendermanager_right->renderModel(optimizedActor);
+    //t_rendermanager_right->renderModel(optimizedActor);
 
     t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface_v3_1.off");
 

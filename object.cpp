@@ -14,5 +14,6 @@ void Object::SetInput(vtkSmartPointer<vtkPolyData> t_model)
     //model = t_model;
     std::cout<<"Points:"<<model->GetNumberOfPoints()<<endl;
     mapper->SetInputData(model);
+    mapper->Update();
 }
 
