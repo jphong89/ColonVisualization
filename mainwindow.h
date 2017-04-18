@@ -58,6 +58,8 @@
 #include <vtkInteractorStyleImage.h>
 #include <vtkProperty.h>
 
+#include "tracermarker.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -81,6 +83,17 @@ public:
     {
         if(side == 0) return m_colon;
         else return m_colon_new;
+    }
+    TracerMarker* GetTracerMark(int id = 0)
+    {
+        if(id == 0)
+            return m_tracermark_1;
+        else if(id == 1)
+            return m_tracermark_2;
+        else if(id == 2)
+            return m_tracermark_inverse_1;
+        else
+            return m_tracermark_inverse_2;
     }
 
 private slots:
@@ -108,6 +121,10 @@ private:
 
     vtkSmartPointer<vtkImageTracerWidget> tracer;
     vtkSmartPointer<vtkImageTracerWidget> tracer_inverse;
+    TracerMarker *m_tracermark_1;
+    TracerMarker *m_tracermark_2;
+    TracerMarker *m_tracermark_inverse_1;
+    TracerMarker *m_tracermark_inverse_2;
 
     ShowSelectedWindow m_showselectedwindow;
 };

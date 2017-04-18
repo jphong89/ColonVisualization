@@ -38,10 +38,17 @@ void CallbackFunction (vtkObject* caller,
       t_window->GetData(1)->GetOutput()->GetPoint(id, p2);
       vtkSmartPointer<vtkPoints> points1 = vtkSmartPointer<vtkPoints>::New();
       vtkSmartPointer<vtkPoints> points2 = vtkSmartPointer<vtkPoints>::New();
+      points1->DeepCopy(t_window->GetTracerMark(0)->GetOutput()->GetPoints());
+      points2->DeepCopy(t_window->GetTracerMark(1)->GetOutput()->GetPoints());
       points1->InsertNextPoint(p1);
       points2->InsertNextPoint(p2);
-      VisualizePoints(points1, 1, 1, 0, 5, t_window->GetRenderManager(0));
-      VisualizePoints(points2, 1, 1, 0, 5, t_window->GetRenderManager(1));
+
+      t_window->GetTracerMark(0)->SetColor(0,0,1);
+      t_window->GetTracerMark(1)->SetColor(0,0,1);
+      t_window->GetTracerMark(0)->InputPoints(points1);
+      t_window->GetTracerMark(1)->InputPoints(points2);
+      t_window->GetRenderManager(0)->renderModel(t_window->GetTracerMark(0)->GetActor());
+      t_window->GetRenderManager(1)->renderModel(t_window->GetTracerMark(1)->GetActor());
 
       QVTKWidget* left = t_window->findChild<QVTKWidget*>("left");
       left->GetRenderWindow()->Render();
@@ -76,10 +83,17 @@ void CallbackFunction_inverse(vtkObject* caller,
       t_window->GetData(1)->GetOutput()->GetPoint(id, p2);
       vtkSmartPointer<vtkPoints> points1 = vtkSmartPointer<vtkPoints>::New();
       vtkSmartPointer<vtkPoints> points2 = vtkSmartPointer<vtkPoints>::New();
+      points1->DeepCopy(t_window->GetTracerMark(2)->GetOutput()->GetPoints());
+      points2->DeepCopy(t_window->GetTracerMark(3)->GetOutput()->GetPoints());
       points1->InsertNextPoint(p1);
       points2->InsertNextPoint(p2);
-      VisualizePoints(points1, 0, 1, 0, 5, t_window->GetRenderManager(0));
-      VisualizePoints(points2, 0, 1, 0, 5, t_window->GetRenderManager(1));
+
+      t_window->GetTracerMark(2)->SetColor(0,1,0);
+      t_window->GetTracerMark(3)->SetColor(0,1,0);
+      t_window->GetTracerMark(2)->InputPoints(points1);
+      t_window->GetTracerMark(3)->InputPoints(points2);
+      t_window->GetRenderManager(0)->renderModel(t_window->GetTracerMark(2)->GetActor());
+      t_window->GetRenderManager(1)->renderModel(t_window->GetTracerMark(3)->GetActor());
 
       QVTKWidget* left = t_window->findChild<QVTKWidget*>("left");
       left->GetRenderWindow()->Render();
@@ -102,6 +116,10 @@ MainWindow::MainWindow(QWidget *parent) :
     m_rendermanager_right = new RenderManager;
     tracer = vtkSmartPointer<vtkImageTracerWidget>::New();
     tracer_inverse = vtkSmartPointer<vtkImageTracerWidget>::New();
+    m_tracermark_1 = new TracerMarker;
+    m_tracermark_2 = new TracerMarker;
+    m_tracermark_inverse_1 = new TracerMarker;
+    m_tracermark_inverse_2 = new TracerMarker;
 
     QVTKWidget* left = this->findChild<QVTKWidget*>("left");
     left->GetRenderWindow()->AddRenderer(m_rendermanager->GetRender());
@@ -118,6 +136,10 @@ MainWindow::~MainWindow()
     delete m_colon_new;
     delete m_rendermanager;
     delete m_rendermanager_right;
+    delete m_tracermark_1;
+    delete m_tracermark_2;
+    delete m_tracermark_inverse_1;
+    delete m_tracermark_inverse_2;
 }
 void MainWindow::addlight()
 {
@@ -501,11 +523,11 @@ void MainWindow::on_tracer_toggled(bool checked)
     {
         tracer->Off();
 
-        m_rendermanager->GetRender()->RemoveAllViewProps();
-        m_rendermanager->renderModel(m_colon->GetActor());
-
-        m_rendermanager_right->GetRender()->RemoveAllViewProps();
-        m_rendermanager_right->renderModel(m_colon_new->GetActor());
+        m_rendermanager->GetRender()->RemoveActor(m_tracermark_1->GetActor());
+        m_rendermanager_right->GetRender()->RemoveActor(m_tracermark_2->GetActor());
+        vtkSmartPointer<vtkPoints> empty = vtkSmartPointer<vtkPoints>::New();
+        m_tracermark_1->InputPoints(empty);
+        m_tracermark_2->InputPoints(empty);
 
         QVTKWidget* left = this->findChild<QVTKWidget*>("left");
         left->GetRenderWindow()->Render();
@@ -554,11 +576,11 @@ void MainWindow::on_checkBox_toggled(bool checked)
     {
         tracer_inverse->Off();
 
-        m_rendermanager->GetRender()->RemoveAllViewProps();
-        m_rendermanager->renderModel(m_colon->GetActor());
-
-        m_rendermanager_right->GetRender()->RemoveAllViewProps();
-        m_rendermanager_right->renderModel(m_colon_new->GetActor());
+        m_rendermanager->GetRender()->RemoveActor(m_tracermark_inverse_1->GetActor());
+        m_rendermanager_right->GetRender()->RemoveActor(m_tracermark_inverse_2->GetActor());
+        vtkSmartPointer<vtkPoints> empty = vtkSmartPointer<vtkPoints>::New();
+        m_tracermark_inverse_1->InputPoints(empty);
+        m_tracermark_inverse_2->InputPoints(empty);
 
         QVTKWidget* left = this->findChild<QVTKWidget*>("left");
         left->GetRenderWindow()->Render();
