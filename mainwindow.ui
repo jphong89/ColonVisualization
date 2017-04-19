@@ -36,13 +36,15 @@
        </item>
        <item>
         <widget class="QCheckBox" name="tracer">
+         <property name="autoFillBackground">
+          <bool>true</bool>
+         </property>
          <property name="text">
           <string>Tracer</string>
          </property>
         </widget>
        </item>
       </layout>
-      <zorder>right</zorder>
       <zorder>tracer</zorder>
       <zorder>verticalSpacer</zorder>
      </widget>
@@ -65,6 +67,9 @@
        </item>
        <item>
         <widget class="QCheckBox" name="checkBox">
+         <property name="autoFillBackground">
+          <bool>true</bool>
+         </property>
          <property name="text">
           <string>Tracer_inv</string>
          </property>

@@ -47,8 +47,10 @@ void CallbackFunction (vtkObject* caller,
       t_window->GetTracerMark(1)->SetColor(0,0,1);
       t_window->GetTracerMark(0)->InputPoints(points1);
       t_window->GetTracerMark(1)->InputPoints(points2);
-      t_window->GetRenderManager(0)->renderModel(t_window->GetTracerMark(0)->GetActor());
-      t_window->GetRenderManager(1)->renderModel(t_window->GetTracerMark(1)->GetActor());
+      t_window->GetRenderManager(0)->GetRender()->AddActor(t_window->GetTracerMark(0)->GetActor());
+      //t_window->GetRenderManager(0)->renderModel(t_window->GetTracerMark(0)->GetActor());
+      t_window->GetRenderManager(1)->GetRender()->AddActor(t_window->GetTracerMark(1)->GetActor());
+      //t_window->GetRenderManager(1)->renderModel(t_window->GetTracerMark(1)->GetActor());
 
       QVTKWidget* left = t_window->findChild<QVTKWidget*>("left");
       left->GetRenderWindow()->Render();
@@ -92,8 +94,10 @@ void CallbackFunction_inverse(vtkObject* caller,
       t_window->GetTracerMark(3)->SetColor(0,1,0);
       t_window->GetTracerMark(2)->InputPoints(points1);
       t_window->GetTracerMark(3)->InputPoints(points2);
-      t_window->GetRenderManager(0)->renderModel(t_window->GetTracerMark(2)->GetActor());
-      t_window->GetRenderManager(1)->renderModel(t_window->GetTracerMark(3)->GetActor());
+      t_window->GetRenderManager(0)->GetRender()->AddActor(t_window->GetTracerMark(2)->GetActor());
+      //t_window->GetRenderManager(0)->renderModel(t_window->GetTracerMark(2)->GetActor());
+      t_window->GetRenderManager(1)->GetRender()->AddActor(t_window->GetTracerMark(3)->GetActor());
+      //t_window->GetRenderManager(1)->renderModel(t_window->GetTracerMark(3)->GetActor());
 
       QVTKWidget* left = t_window->findChild<QVTKWidget*>("left");
       left->GetRenderWindow()->Render();
@@ -208,16 +212,23 @@ void MainWindow::on_actionLoad_Centerline_triggered()
 
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");
 
-    m_rendermanager->renderModel(m_centerline->GetActor());
     m_rendermanager_right->renderModel(m_colon_new->GetActor());
+    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
 
+    tracer_inverse->GetLineProperty()->SetLineWidth(5);
+    tracer_inverse->SetInteractor(right->GetRenderWindow()->GetInteractor());
+    tracer_inverse->SetViewProp(m_colon_new->GetActor());
 
+    right->GetRenderWindow()->Render();
+    vtkSmartPointer<vtkCallbackCommand> callback =
+            vtkSmartPointer<vtkCallbackCommand>::New();
+    callback->SetCallback(CallbackFunction_inverse);
+    callback->SetClientData(this);
+    tracer_inverse->AddObserver(vtkCommand::EndInteractionEvent, callback);
 
 
     QVTKWidget* left = this->findChild<QVTKWidget*>("left");
     left->GetRenderWindow()->Render();
-    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
-    right->GetRenderWindow()->Render();
 }
 
 // Give two points on colon surface, find the geodesic path between them.
