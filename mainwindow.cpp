@@ -119,6 +119,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_colon_new = new Colon;
     m_rendermanager = new RenderManager;
     m_rendermanager_right = new RenderManager;
+
     tracer = vtkSmartPointer<vtkImageTracerWidget>::New();
     tracer_inverse = vtkSmartPointer<vtkImageTracerWidget>::New();
     m_tracermark_1 = new TracerMarker;
@@ -126,10 +127,27 @@ MainWindow::MainWindow(QWidget *parent) :
     m_tracermark_inverse_1 = new TracerMarker;
     m_tracermark_inverse_2 = new TracerMarker;
 
+    m_oldcenterline = vtkSmartPointer<vtkPoints>::New();
+    m_newcenterline = vtkSmartPointer<vtkPoints>::New();
+    m_oldplanenormals = vtkSmartPointer<vtkDoubleArray>::New();
+    m_newplanenormals = vtkSmartPointer<vtkDoubleArray>::New();
+    m_sweepingplane_l = new SweepingPlane;
+    m_sweepingplane_r = new SweepingPlane;
+
     QVTKWidget* left = this->findChild<QVTKWidget*>("left");
     left->GetRenderWindow()->AddRenderer(m_rendermanager->GetRender());
     QVTKWidget* right = this->findChild<QVTKWidget*>("right");
     right->GetRenderWindow()->AddRenderer(m_rendermanager_right->GetRender());
+
+    QCheckBox* checkbox_l = this->findChild<QCheckBox*>("tracer");
+    checkbox_l->setDisabled(true);
+    QCheckBox* checkbox_r = this->findChild<QCheckBox*>("tracer_r");
+    checkbox_r->setDisabled(true);
+    twoWindowReady = 0;
+
+    QScrollBar* scrollbar = this->findChild<QScrollBar*>("horizontalScrollBar");
+    scrollbar->setMaximum(10000);
+    scrollbar->setDisabled(true);
 }
 
 MainWindow::~MainWindow()
@@ -145,6 +163,8 @@ MainWindow::~MainWindow()
     delete m_tracermark_2;
     delete m_tracermark_inverse_1;
     delete m_tracermark_inverse_2;
+    delete m_sweepingplane_l;
+    delete m_sweepingplane_r;
 }
 void MainWindow::addlight()
 {
@@ -181,6 +201,17 @@ void MainWindow::on_actionNew_file_triggered()
 
     QVTKWidget* right = this->findChild<QVTKWidget*>("right");
     right->GetRenderWindow()->Render();
+
+    if(twoWindowReady == 0)
+        twoWindowReady++;
+    else
+    {
+        twoWindowReady = 2;
+        QCheckBox* checkbox_l = this->findChild<QCheckBox*>("tracer");
+        checkbox_l->setEnabled(true);
+        QCheckBox* checkbox_r = this->findChild<QCheckBox*>("tracer_r");
+        checkbox_r->setEnabled(true);
+    }
 }
 
 // centerline and colon deformation are done in this function
@@ -648,9 +679,20 @@ void MainWindow::on_action_Load_Deformed_Surface_triggered()
 
     QVTKWidget* left = this->findChild<QVTKWidget*>("left");
     left->GetRenderWindow()->Render();
+
+    if(twoWindowReady == 0)
+        twoWindowReady++;
+    else
+    {
+        twoWindowReady = 2;
+        QCheckBox* checkbox_l = this->findChild<QCheckBox*>("tracer");
+        checkbox_l->setEnabled(true);
+        QCheckBox* checkbox_r = this->findChild<QCheckBox*>("tracer_r");
+        checkbox_r->setEnabled(true);
+    }
 }
 
-void MainWindow::on_checkBox_toggled(bool checked)
+void MainWindow::on_tracer_r_toggled(bool checked)
 {
     if(checked)
     {
@@ -671,4 +713,86 @@ void MainWindow::on_checkBox_toggled(bool checked)
         QVTKWidget* right = this->findChild<QVTKWidget*>("right");
         right->GetRenderWindow()->Render();
     }
+}
+
+void MainWindow::on_horizontalScrollBar_sliderMoved(int position)
+{
+    std::cout<<position<<endl;
+    vtkSmartPointer<vtkRegularPolygonSource> polygonSource_l = vtkSmartPointer<vtkRegularPolygonSource>::New();
+
+    double p_l[3], n_l[3];
+    m_oldcenterline->GetPoint(position, p_l);
+    m_oldplanenormals->GetTuple(position, n_l);
+    polygonSource_l->SetNumberOfSides(50);
+    polygonSource_l->SetRadius(40);
+    polygonSource_l->SetCenter(p_l);
+    polygonSource_l->SetNormal(n_l);
+    polygonSource_l->Update();
+
+    m_sweepingplane_l->InputData(polygonSource_l->GetOutput());
+    QVTKWidget* left = this->findChild<QVTKWidget*>("left");
+    left->GetRenderWindow()->Render();
+
+    vtkSmartPointer<vtkRegularPolygonSource> polygonSource_r = vtkSmartPointer<vtkRegularPolygonSource>::New();
+
+    double p_r[3], n_r[3];
+    m_newcenterline->GetPoint(position, p_r);
+    m_newplanenormals->GetTuple(position, n_r);
+    polygonSource_r->SetNumberOfSides(50);
+    polygonSource_r->SetRadius(40);
+    polygonSource_r->SetCenter(p_r);
+    polygonSource_r->SetNormal(n_r);
+    polygonSource_r->Update();
+
+    m_sweepingplane_r->InputData(polygonSource_r->GetOutput());
+    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+    right->GetRenderWindow()->Render();
+}
+
+void MainWindow::on_action_Load_Centerlines_triggered()
+{
+    QString filePath = QFileDialog::getOpenFileName(
+                this, tr("Open File"),"",
+                tr("Centerline Config (*.txt)"));
+    if(filePath.isEmpty()) return;
+    ifstream file;
+    file.open(filePath.toStdString().c_str());
+    int N = 0;
+    file>>N;
+    std::cout<<N<<" points"<<endl;
+    vtkSmartPointer<vtkPoints> emptypoints = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkDoubleArray> emptydouble = vtkSmartPointer<vtkDoubleArray>::New();
+    emptydouble->SetNumberOfComponents(3);
+    m_oldcenterline->DeepCopy(emptypoints);
+    m_newcenterline->DeepCopy(emptypoints);
+    m_oldplanenormals->DeepCopy(emptydouble);
+    m_newplanenormals->DeepCopy(emptydouble);
+
+    for(int i=0; i<N; i++)
+    {
+        double pold[3], pnew[3], nold[3], nnew[3];
+        file >> pold[0] >> pold[1] >> pold[2];
+        file >> nold[0] >> nold[1] >> nold[2];
+        file >> pnew[0] >> pnew[1] >> pnew[2];
+        file >> nnew[0] >> nnew[1] >> nnew[2];
+        m_oldcenterline->InsertNextPoint(pold);
+        m_newcenterline->InsertNextPoint(pnew);
+        m_oldplanenormals->InsertNextTuple(nold);
+        m_newplanenormals->InsertNextTuple(nnew);
+    }
+    VisualizePoints(m_oldcenterline, 1, 0, 0, 1, m_rendermanager);
+    VisualizePoints(m_newcenterline, 1, 0, 0, 1, m_rendermanager_right);
+
+
+    QScrollBar* scrollbar = this->findChild<QScrollBar*>("horizontalScrollBar");
+    scrollbar->setMaximum(N-1);
+    scrollbar->setEnabled(true);
+
+    m_rendermanager->renderModel(m_sweepingplane_l->GetActor());
+    QVTKWidget* left = this->findChild<QVTKWidget*>("left");
+    left->GetRenderWindow()->Render();
+
+    m_rendermanager_right->renderModel(m_sweepingplane_r->GetActor());
+    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+    right->GetRenderWindow()->Render();
 }

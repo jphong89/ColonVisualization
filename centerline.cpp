@@ -1584,11 +1584,11 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         double end[3], cp[3], et[3];
         model->GetPoint(i, cp);
         RefDirections->GetTuple(i, et);
-        vtkMath::MultiplyScalar(et, 15);
+        vtkMath::MultiplyScalar(et, 20);
         vtkMath::Add(cp, et, end);
         EndPoints->SetPoint(i, end);
     }
-    //VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
+    VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
 
     /* // Use Lorentzian Interpolation to align the cross sections
     vtkSmartPointer<vtkDoubleArray> InterpolatedRefDirections = vtkSmartPointer<vtkDoubleArray>::New();
@@ -3681,19 +3681,26 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     }
     free(marked);
 
-    /* // output the deformation field to .txt file
+    // output the deformation field to .txt file
     ofstream file;
-    file.open("/home/ruibinma/Desktop/deformation_v3_1.txt");
-    for(vtkIdType i = 0; i < t_colon->GetNumberOfPoints(); i++)
+    file.open("./centerline_config.txt");
+    assert(model->GetNumberOfPoints() == newcenterline->GetNumberOfPoints());
+    assert(PlaneNormals->GetNumberOfTuples() == NewTangents->GetNumberOfTuples());
+    file<<model->GetNumberOfPoints()<<endl;
+    for(int i=0; i<model->GetNumberOfPoints(); i++)
     {
-        double p[3], np[3], v[3];
-        t_colon->GetPoint(i, p);
-        SurfaceLineUp->GetPoint(i, np);
-        vtkMath::Subtract(np, p, v);
-        file<<v[0]<<" "<<v[1]<<" "<<v[2]<<" "<<Is_Fixed[i]<<std::endl;
+        double pold[3], nold[3], pnew[3], nnew[3];
+        model->GetPoint(i, pold);
+        newcenterline->GetPoint(i, pnew);
+        PlaneNormals->GetTuple(i, nold);
+        NewTangents->GetTuple(i, nnew);
+        file<<pold[0]<<" "<<pold[1]<<" "<<pold[2]<<" ";
+        file<<nold[0]<<" "<<nold[1]<<" "<<nold[2]<<" ";
+        file<<pnew[0]<<" "<<pnew[1]<<" "<<pnew[2]<<" ";
+        file<<nnew[0]<<" "<<nnew[1]<<" "<<nnew[2]<<std::endl;
     }
     file.close();
-    */
+
     //
     //visualize the fixed points
     /*

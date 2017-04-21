@@ -57,8 +57,13 @@
 #include <vtkImageCanvasSource2D.h>
 #include <vtkInteractorStyleImage.h>
 #include <vtkProperty.h>
-
+#include <QCheckBox>
 #include "tracermarker.h"
+
+#include "sweepingplane.h"
+#include <QScrollBar>
+#include <fstream>
+#include <vtkRegularPolygonSource.h>
 
 namespace Ui {
 class MainWindow;
@@ -107,7 +112,11 @@ private slots:
 
     void on_action_Load_Deformed_Surface_triggered();
 
-    void on_checkBox_toggled(bool checked);
+    void on_tracer_r_toggled(bool checked);
+
+    void on_horizontalScrollBar_sliderMoved(int position);
+
+    void on_action_Load_Centerlines_triggered();
 
 private:
     Ui::MainWindow *ui;
@@ -125,6 +134,14 @@ private:
     TracerMarker *m_tracermark_2;
     TracerMarker *m_tracermark_inverse_1;
     TracerMarker *m_tracermark_inverse_2;
+    int twoWindowReady;
+
+    vtkSmartPointer<vtkPoints> m_oldcenterline;
+    vtkSmartPointer<vtkPoints> m_newcenterline;
+    vtkSmartPointer<vtkDoubleArray> m_oldplanenormals;
+    vtkSmartPointer<vtkDoubleArray> m_newplanenormals;
+    SweepingPlane *m_sweepingplane_l;
+    SweepingPlane *m_sweepingplane_r;
 
     ShowSelectedWindow m_showselectedwindow;
 };

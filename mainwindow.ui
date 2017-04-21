@@ -17,8 +17,8 @@
    <property name="enabled">
     <bool>true</bool>
    </property>
-   <layout class="QHBoxLayout" name="horizontalLayout">
-    <item>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
      <widget class="QVTKWidget" name="left" native="true">
       <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
        <item>
@@ -49,7 +49,7 @@
       <zorder>verticalSpacer</zorder>
      </widget>
     </item>
-    <item>
+    <item row="0" column="1">
      <widget class="QVTKWidget" name="right" native="true">
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
@@ -66,7 +66,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QCheckBox" name="checkBox">
+        <widget class="QCheckBox" name="tracer_r">
          <property name="autoFillBackground">
           <bool>true</bool>
          </property>
@@ -76,6 +76,13 @@
         </widget>
        </item>
       </layout>
+     </widget>
+    </item>
+    <item row="1" column="0" colspan="2">
+     <widget class="QScrollBar" name="horizontalScrollBar">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
      </widget>
     </item>
    </layout>
@@ -95,6 +102,7 @@
     </property>
     <addaction name="actionNew_file"/>
     <addaction name="action_Load_Deformed_Surface"/>
+    <addaction name="action_Load_Centerlines"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -133,6 +141,11 @@
   <action name="action_Load_Deformed_Surface">
    <property name="text">
     <string>&amp;Load Deformed Surface</string>
+   </property>
+  </action>
+  <action name="action_Load_Centerlines">
+   <property name="text">
+    <string>&amp;Load Centerlines</string>
    </property>
   </action>
  </widget>

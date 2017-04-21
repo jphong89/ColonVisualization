@@ -23,7 +23,8 @@ SOURCES += main.cpp\
     genesyndata.cpp \
     vtkpolydatagroup.cpp \
     optimization.cpp \
-    tracermarker.cpp
+    tracermarker.cpp \
+    sweepingplane.cpp
 
 HEADERS  += mainwindow.h \
     filemanager.h \
@@ -35,7 +36,8 @@ HEADERS  += mainwindow.h \
     genesyndata.h \
     vtkpolydatagroup.h \
     optimization.h \
-    tracermarker.h
+    tracermarker.h \
+    sweepingplane.h
 
 LIBS += -L/usr/local/lib -ldl -lGL -lvtkCommonColor-7.1 -lvtkCommonCore-7.1 \
   -lvtkCommonComputationalGeometry-7.1 -lvtkCommonDataModel-7.1 -lvtkCommonExecutionModel-7.1 \

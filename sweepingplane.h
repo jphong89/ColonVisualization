@@ -1,5 +1,5 @@
-#ifndef TRACERMARKER_H
-#define TRACERMARKER_H
+#ifndef SWEEPINGPLANE_H
+#define SWEEPINGPLANE_H
 
 
 #include "object.h"
@@ -11,20 +11,18 @@
 #include <vtkSelection.h>
 #include <vtkSelectionNode.h>
 #include <vtkVertexGlyphFilter.h>
+#include <vtkExtractEdges.h>
 
-
-class  TracerMarker : public Object
+class  SweepingPlane : public Object
 {
 private:
     double color[3];
-    double size;
+    double linewidth;
+    bool boundary;
 public:
-    TracerMarker();
-    ~TracerMarker(){}
-    void InputPoints(vtkSmartPointer<vtkPoints> points);
-    void SetColor(double r, double g, double b);
-    void SetSize(double s);
+    SweepingPlane();
+    ~SweepingPlane(){}
+    void InputData(vtkSmartPointer<vtkPolyData> poly);
 };
 
-
-#endif // TRACERMARKER_H
+#endif // SWEEPINGPLANE_H
