@@ -2951,7 +2951,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 1; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
+    int choice = 6; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
     double translate = 0;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -3681,7 +3681,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     }
     free(marked);
 
-    // output the deformation field to .txt file
     ofstream file;
     file.open("./centerline_config.txt");
     assert(model->GetNumberOfPoints() == newcenterline->GetNumberOfPoints());
@@ -3857,7 +3856,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     optimizedActor->GetProperty()->SetOpacity(0.5);
     //t_rendermanager_right->renderModel(optimizedActor);
 
-    t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface_v3_1.off");
+    t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
 
     free(Is_Fixed);
     free(RegionIds);
