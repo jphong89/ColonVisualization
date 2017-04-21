@@ -466,6 +466,74 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     aver = aver / (leftpart->GetNumberOfPoints() + rightpart->GetNumberOfPoints());
     std::cout<<"Average radius is "<<aver<<endl;
 
+    // one to one mapping used for interaction
+    vtkSmartPointer<vtkPoints> onetoonepoints = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkPolyData> onetoone = vtkSmartPointer<vtkPolyData>::New();
+    onetoone->DeepCopy(m_colon->GetOutput());
+    for(vtkIdType i=0; i<m_colon->GetOutput()->GetNumberOfPoints(); i++)
+    {
+        double p[3], v[3];
+        m_colon->GetOutput()->GetPoint(i, p);
+        vtkMath::Subtract(p, origin, v);
+        if(vtkMath::Dot(v, normal) > 0) // left points
+        {
+            double x = vtkMath::Dot(d1, v);
+            double z = vtkMath::Dot(normal, v);
+            if(z < 0) z = -z;
+            double y = vtkMath::Dot(d2, v);
+            double r = sqrt(z*z + y*y);
+            double angle = acos(y/r);
+            //double newr = r * factor * exp(adjust *((r0 - r)/r0));
+            double newr = factor * (r * k + b);
+            double newangle = angle / factor;
+
+            double newy = newr * cos(newangle);
+            double newz = newr * sin(newangle);
+
+            double vx[3], vy[3], vz[3], temp1[3], temp2[3], newp[3];
+            vx[0] = d1[0]; vx[1] = d1[1]; vx[2] = d1[2];
+            vy[0] = d2[0]; vy[1] = d2[1]; vy[2] = d2[2];
+            vz[0] = normal[0]; vz[1] = normal[1]; vz[2] = normal[2];
+            vtkMath::MultiplyScalar(vx, x);
+            vtkMath::MultiplyScalar(vy, newy);
+            vtkMath::MultiplyScalar(vz, newz);
+            vtkMath::Add(origin, vx, temp1);
+            vtkMath::Add(temp1, vy, temp2);
+            vtkMath::Add(temp2, vz, newp);
+            onetoonepoints->InsertNextPoint(newp);
+        }
+        else // right points
+        {
+            vtkMath::MultiplyScalar(normal, -1);
+            double x = vtkMath::Dot(d1, v);
+            double z = vtkMath::Dot(normal, v);
+            if(z < 0) z = -z;
+            double y = vtkMath::Dot(d2, v);
+            double r = sqrt(z*z + y*y);
+            double angle = acos(y/r);
+            //double newr = r * factor * exp(adjust *((r0 - r)/r0));
+            double newr = factor * (r * k + b);
+            double newangle = angle / factor;
+
+            double newy = newr * cos(newangle);
+            double newz = newr * sin(newangle);
+
+            double vx[3], vy[3], vz[3], temp1[3], temp2[3], newp[3];
+            vx[0] = d1[0]; vx[1] = d1[1]; vx[2] = d1[2];
+            vy[0] = d2[0]; vy[1] = d2[1]; vy[2] = d2[2];
+            vz[0] = normal[0]; vz[1] = normal[1]; vz[2] = normal[2];
+            vtkMath::MultiplyScalar(vx, x);
+            vtkMath::MultiplyScalar(vy, newy);
+            vtkMath::MultiplyScalar(vz, newz);
+            vtkMath::Add(origin, vx, temp1);
+            vtkMath::Add(temp1, vy, temp2);
+            vtkMath::Add(temp2, vz, newp);
+            onetoonepoints->InsertNextPoint(newp);
+            vtkMath::MultiplyScalar(normal, -1);
+        }
+    }
+    onetoone->SetPoints(onetoonepoints);
+
     vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
     appendFilter->AddInputData(leftpart);
     appendFilter->AddInputData(rightpart);
@@ -478,6 +546,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
 
     vtkSmartPointer<vtkPolyDataMapper> selectedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     selectedMapper->SetInputData(bended);
+    //selectedMapper->SetInputData(onetoone);
     vtkSmartPointer<vtkActor> selectedActor = vtkSmartPointer<vtkActor>::New();
     selectedActor->SetMapper(selectedMapper);
 
@@ -499,11 +568,25 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     edgeActor->SetMapper(edgeMapper);
     edgeActor->GetProperty()->SetColor(255,0,0);
 
-    m_colon_new->Object::SetInput(bended);
+    m_colon_new->Object::SetInput(onetoone);
     m_rendermanager_right->renderModel(selectedActor);
-    m_rendermanager_right->renderModel(edgeActor);
+    //m_rendermanager_right->renderModel(edgeActor);
     QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+
+    tracer_inverse->GetLineProperty()->SetLineWidth(5);
+    tracer_inverse->SetInteractor(right->GetRenderWindow()->GetInteractor());
+    tracer_inverse->SetViewProp(selectedActor);
+
     right->GetRenderWindow()->Render();
+    vtkSmartPointer<vtkCallbackCommand> callback =
+            vtkSmartPointer<vtkCallbackCommand>::New();
+    callback->SetCallback(CallbackFunction_inverse);
+    callback->SetClientData(this);
+    tracer_inverse->AddObserver(vtkCommand::EndInteractionEvent, callback);
+
+
+    QVTKWidget* left = this->findChild<QVTKWidget*>("left");
+    left->GetRenderWindow()->Render();
 
     //m_showselectedwindow.show();
     //m_showselectedwindow.RenderSelected(selectedActor);
@@ -512,23 +595,6 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
 
     //m_showselectedwindow.RenderSelected(edgeActor);
     //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
-
-    /*
-    double position[3] = {0,0, -30};
-    vtkMath::Add(position, edgeActor->GetCenter(), position);
-    m_showselectedwindow.GetRenderManager().GetLight()->SetPosition(position);
-
-    double direction[3] = {0, 0, -1};
-    vtkMath::Add(direction, edgeActor->GetCenter(), direction);
-    m_showselectedwindow.GetRenderManager().GetLight()->SetFocalPoint(direction);
-
-    vtkSmartPointer<vtkLightActor> lightActor = vtkSmartPointer<vtkLightActor>::New();
-    lightActor->SetLight(m_showselectedwindow.GetRenderManager().GetLight());
-    m_showselectedwindow.GetRenderManager().GetRender()->AddViewProp(lightActor);
-    */
-
-    //m_showselectedwindow.GetRenderManager().GetRender()->LightFollowCameraOff();
-    //m_showselectedwindow.GetRenderManager().addlight();
 }
 
 void MainWindow::on_tracer_toggled(bool checked)
