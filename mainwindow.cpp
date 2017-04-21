@@ -32,6 +32,7 @@ void CallbackFunction (vtkObject* caller,
       pointLocator->SetDataSet(t_window->GetData(0)->GetOutput());
       pointLocator->BuildLocator();
       int id = pointLocator->FindClosestPoint(p);
+      std::cout<<id<<" :"<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
 
       double p1[3], p2[3];
       t_window->GetData(0)->GetOutput()->GetPoint(id, p1);
@@ -212,6 +213,7 @@ void MainWindow::on_actionLoad_Centerline_triggered()
 
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");
 
+    m_rendermanager->renderModel(m_centerline->GetActor());
     m_rendermanager_right->renderModel(m_colon_new->GetActor());
     QVTKWidget* right = this->findChild<QVTKWidget*>("right");
 
@@ -301,7 +303,7 @@ vtkSmartPointer<vtkPolyData> MainWindow::Upsampling(vtkSmartPointer<vtkPolyData>
 void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
     test = true;
-    double factor = 3, r0 = 18.5793, adjust = 0.75;
+    double factor = 2, r0 = 18.5793, adjust = 0.75;
     double k = 0.5, b;
     b = r0*(1-k);
     double aver = 0;
@@ -309,9 +311,8 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
 
     if(test)
     {
+        // configuration
         r0 = 2.79012; adjust = 0.9; b = r0*(1-k);
-        //double f1[3] = {8.183, -4.317, 11.282}, f2[3] = {-5.445, 2.407, -3.106}, f3[3] = {3.959, -4.641, 0.886};
-        //double f1[3] = {7.904, -4.674, 11.167}, f2[3] = {-5.976, 3.461, -3.272}, f3[3] = {9.324, 3.789, -0.058};
         double f1[3] = {7.904, -4.674, 11.167}, f2[3] = {-5.976, 3.461, -3.272}, f3[3] = {-0.826, -1.501, 10.889};
         origin[0] = f2[0];
         origin[1] = f2[1];
@@ -498,8 +499,14 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     edgeActor->SetMapper(edgeMapper);
     edgeActor->GetProperty()->SetColor(255,0,0);
 
-    m_showselectedwindow.show();
-    m_showselectedwindow.RenderSelected(selectedActor);
+    m_colon_new->Object::SetInput(bended);
+    m_rendermanager_right->renderModel(selectedActor);
+    m_rendermanager_right->renderModel(edgeActor);
+    QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+    right->GetRenderWindow()->Render();
+
+    //m_showselectedwindow.show();
+    //m_showselectedwindow.RenderSelected(selectedActor);
 
     m_filemanager->SaveFile(bended, "openedcolontextured.off", true);
 

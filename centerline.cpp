@@ -7,6 +7,7 @@
 Centerline::Centerline()
 {
     actor->GetProperty()->SetColor(1,1,0);
+    actor->GetProperty()->SetLineWidth(5);
 }
 int Centerline::GetNumberOfPoints()
 {
@@ -1347,22 +1348,25 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     }
 
     // visualize the ill cut circles
+    /*
     vtkSmartPointer<vtkPolyDataMapper> IllCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     IllCutCirclesMapper->SetInputData(IllCutCircles);
     IllCutCirclesMapper->Update();
     vtkSmartPointer<vtkActor> IllCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     IllCutCirclesActor->SetMapper(IllCutCirclesMapper);
     IllCutCirclesActor->GetProperty()->SetColor(1, 0, 0);
-    //t_rendermanager->renderModel(IllCutCirclesActor);
-
+    t_rendermanager->renderModel(IllCutCirclesActor);
+    */
     // visualize the normal cut circles
+    /*
     vtkSmartPointer<vtkPolyDataMapper> NormalCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     NormalCutCirclesMapper->SetInputData(NormalCutCircles);
     NormalCutCirclesMapper->Update();
     vtkSmartPointer<vtkActor> NormalCutCirclesActor = vtkSmartPointer<vtkActor>::New();
     NormalCutCirclesActor->SetMapper(NormalCutCirclesMapper);
     NormalCutCirclesActor->GetProperty()->SetColor(0, 1, 1);
-    //t_rendermanager->renderModel(NormalCutCirclesActor);
+    t_rendermanager->renderModel(NormalCutCirclesActor);
+    */
 
     // visualize the violation points
     /*
@@ -1514,17 +1518,6 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     t_rendermanager->renderModel(NewCutlinesActor);
     */
 
-
-    /*
-    for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
-    {
-        double p[3], t[3];
-        PlaneOriginals->GetTuple(i, p);
-        PlaneNormals->GetTuple(i, t);
-        std::cout<<i<<" "<<p[0]<<" "<<p[1]<<" "<<p[2]<<" "<<t[0]<<" "<<t[1]<<" "<<t[2]<<endl;
-    }
-    */
-
     // Calculate the Reference Directions
 /*
     vtkSmartPointer<vtkDoubleArray> RefDirections = vtkSmartPointer<vtkDoubleArray>::New();
@@ -1595,7 +1588,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Add(cp, et, end);
         EndPoints->SetPoint(i, end);
     }
-    VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
+    //VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
 
     /* // Use Lorentzian Interpolation to align the cross sections
     vtkSmartPointer<vtkDoubleArray> InterpolatedRefDirections = vtkSmartPointer<vtkDoubleArray>::New();
@@ -1655,7 +1648,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
     return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, t_rendermanager_right, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
-    //return Deformation_v3_1(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
+    //return Deformation_v3(S, Curvatures, CurvaturePointIds,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, InterpolatedRefDirections, t_filemanager);
     //return NULL;
 }
 
@@ -2958,7 +2951,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 3; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
+    int choice = 1; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
     double translate = 0;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -3282,14 +3275,14 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     */
 
     vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
+    newcenterline->DeepCopy(model);
     newcenterline->SetPoints(newpoints);
-    vtkSmartPointer<vtkVertexGlyphFilter> newVertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
-    newVertexFilter->SetInputData(newcenterline);
-    newVertexFilter->Update();
     vtkSmartPointer<vtkPolyDataMapper> newMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    newMapper->SetInputConnection(newVertexFilter->GetOutputPort());
+    newMapper->SetInputData(newcenterline);
     vtkSmartPointer<vtkActor> newActor = vtkSmartPointer<vtkActor>::New();
     newActor->SetMapper(newMapper);
+    newActor->GetProperty()->SetLineWidth(5);
+    newActor->GetProperty()->SetColor(1, 1, 0);
     t_rendermanager_right->renderModel(newActor);
 
     // Line Up the Cross Sections
@@ -3462,8 +3455,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkActor> OriginCutCircleActor = vtkSmartPointer<vtkActor>::New();
     OriginCutCircleActor->SetMapper(OriginCutCircleMapper);
     OriginCutCircleActor->GetProperty()->SetColor(0, 0.5, 1);
-    OriginCutCircleActor->GetProperty()->SetLineWidth(3);
-    //t_rendermanager->renderModel(OriginCutCircleActor);
+    OriginCutCircleActor->GetProperty()->SetLineWidth(4);
+    t_rendermanager->renderModel(OriginCutCircleActor);
 
     vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     CutCircleLineUpMapper->SetInputData(CutCircleLineUp);
@@ -3471,7 +3464,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
     CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
-    //t_rendermanager_right->renderModel(CutCircleLineUpActor);
+    CutCircleLineUpActor->GetProperty()->SetLineWidth(4);
+    t_rendermanager_right->renderModel(CutCircleLineUpActor);
 
     // deformation of surface begin
     // place the seed
