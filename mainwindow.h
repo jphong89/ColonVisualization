@@ -65,6 +65,10 @@
 #include <fstream>
 #include <vtkRegularPolygonSource.h>
 
+#include <vtkCamera.h>
+#include <vtkWindowToImageFilter.h>
+#include <vtkPNGWriter.h>
+
 namespace Ui {
 class MainWindow;
 }

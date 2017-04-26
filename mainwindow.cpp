@@ -343,11 +343,13 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     if(test)
     {
         // configuration
+
         r0 = 2.79012; adjust = 0.9; b = r0*(1-k);
         double f1[3] = {7.904, -4.674, 11.167}, f2[3] = {-5.976, 3.461, -3.272}, f3[3] = {-0.826, -1.501, 10.889};
         origin[0] = f2[0];
         origin[1] = f2[1];
         origin[2] = f2[2];
+
         /* // visualize the fiducial points
         vtkSmartPointer<vtkPoints> fiducials = vtkSmartPointer<vtkPoints>::New();
         fiducials->InsertNextPoint(f1);
@@ -385,6 +387,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         vtkMath::Normalize(pd3);
 
         vtkSmartPointer<vtkPoints> newpoints = vtkSmartPointer<vtkPoints>::New();
+        double pave[3] = {0,0,0};
         for(int i = 0; i < m_colon->GetOutput()->GetNumberOfPoints(); i++)
         {
             double p[3], v[3];
@@ -405,9 +408,22 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
             vtkMath::Add(temp1, vy, temp2);
             vtkMath::Add(temp2, vz, newp);
             newpoints->InsertNextPoint(newp);
+            vtkMath::Add(pave, newp, pave);
         }
         m_colon->GetOutput()->SetPoints(newpoints);
         m_rendermanager->renderModel(m_colon->GetActor());
+
+        double position[3];
+        vtkMath::MultiplyScalar(pave, 1.0/newpoints->GetNumberOfPoints());
+        pave[0] += 2;
+        position[0] = 40*0+pave[0];
+        position[1] = 40*-1+pave[1];
+        position[2] = 40*-0.5+pave[2];
+        vtkSmartPointer<vtkCamera> camera = vtkSmartPointer<vtkCamera>::New();
+        camera->SetPosition(position);
+        camera->SetFocalPoint(pave);
+        m_rendermanager_right->GetRender()->SetActiveCamera(camera);
+        m_rendermanager_right->GetRender()->SetBackground(0, 1, 3);
     }
 
     vtkSmartPointer<vtkPlane> clipPlane = vtkSmartPointer<vtkPlane>::New();
@@ -600,9 +616,29 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     edgeActor->GetProperty()->SetColor(255,0,0);
 
     m_colon_new->Object::SetInput(onetoone);
-    m_rendermanager_right->renderModel(selectedActor);
-    //m_rendermanager_right->renderModel(edgeActor);
+
     QVTKWidget* right = this->findChild<QVTKWidget*>("right");
+    if(test)
+    {
+        m_rendermanager_right->GetRender()->AddActor(selectedActor);
+        m_rendermanager_right->GetRender()->AddActor(edgeActor);
+        vtkSmartPointer<vtkWindowToImageFilter> screenshot = vtkSmartPointer<vtkWindowToImageFilter>::New();
+        screenshot->SetInput(right->GetRenderWindow());
+        screenshot->SetMagnification(2);
+        screenshot->SetInputBufferTypeToRGBA();
+        screenshot->ReadFrontBufferOff();
+        screenshot->Update();
+        vtkSmartPointer<vtkPNGWriter> writer = vtkSmartPointer<vtkPNGWriter>::New();
+        char filename[50];
+        sprintf(filename, "%.2lf.png", factor);
+        std::cout<<filename<<endl;
+        writer->SetFileName(filename);
+        writer->SetInputConnection(screenshot->GetOutputPort());
+        writer->Write();
+    }
+    else
+        m_rendermanager_right->renderModel(selectedActor);
+
 
     tracer_inverse->GetLineProperty()->SetLineWidth(5);
     tracer_inverse->SetInteractor(right->GetRenderWindow()->GetInteractor());
@@ -622,7 +658,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     //m_showselectedwindow.show();
     //m_showselectedwindow.RenderSelected(selectedActor);
 
-    m_filemanager->SaveFile(bended, "openedcolontextured.off", true);
+    //m_filemanager->SaveFile(bended, "openedcolontextured.off", test);
 
     //m_showselectedwindow.RenderSelected(edgeActor);
     //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
