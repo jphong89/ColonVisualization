@@ -334,11 +334,14 @@ vtkSmartPointer<vtkPolyData> MainWindow::Upsampling(vtkSmartPointer<vtkPolyData>
 void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
     test = true;
-    double factor = 2, r0 = 18.5793, adjust = 0.75;
+    double factor = 4.0, r0 = 18.5793, adjust = 0.75;
     double k = 0.5, b;
     b = r0*(1-k);
     double aver = 0;
     double origin[3] = {667.6, 491.462, -213.051}, normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
+    double overlapangle = 45.0 / 180.0 * 3.1415926;
+    double normal_r[3]; normal_r[0] = 0; normal_r[1] = -sin(overlapangle); normal_r[2] = cos(overlapangle);
+    double normal_l[3]; normal_l[0] = 0; normal_l[1] = -sin(overlapangle); normal_l[2] = -cos(overlapangle);
 
     if(test)
     {
@@ -423,7 +426,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         camera->SetPosition(position);
         camera->SetFocalPoint(pave);
         m_rendermanager_right->GetRender()->SetActiveCamera(camera);
-        m_rendermanager_right->GetRender()->SetBackground(0, 1, 3);
+        m_rendermanager_right->GetRender()->SetBackground(0, 0.5, 3);
     }
 
     vtkSmartPointer<vtkPlane> clipPlane = vtkSmartPointer<vtkPlane>::New();
@@ -468,11 +471,63 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
         aver += r;
             //std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
     }
+    // cut from left part for right overlap
+    vtkSmartPointer<vtkPolyData> rightoverlap = vtkSmartPointer<vtkPolyData>::New();
+    clipPlane->SetNormal(normal_l);
+    clipper->RemoveAllInputs();
+    clipper->SetInputData(leftpart);
+    clipper->Update();
+    rightoverlap->DeepCopy(clipper->GetOutput());
+    vtkSmartPointer<vtkPoints> rightoverlapnewpoints = vtkSmartPointer<vtkPoints>::New();
+    vtkMath::MultiplyScalar(normal, -1);
+    for(int i=0; i < rightoverlap->GetNumberOfPoints(); i++)
+    {
+        double p[3], v[3];
+        rightoverlap->GetPoint(i, p);
+        vtkMath::Subtract(p, origin, v);
+        double x = vtkMath::Dot(d1, v);
+        double z = vtkMath::Dot(normal, v);
+        if(z < 0) z = -z;
+        double y = vtkMath::Dot(d2, v);
+        double r = sqrt(z*z + y*y);
+        double angle = 2*3.1415926-acos(y/r);
+        std::cout<<angle/3.1415926*180<<endl;
+        //double newr = r * factor * exp(adjust *((r0 - r)/r0));
+        double newr = factor * (r * k + b);
+        double newangle = angle / factor;
+
+        double newy = newr * cos(newangle);
+        double newz = newr * sin(newangle);
+
+        double vx[3], vy[3], vz[3], temp1[3], temp2[3], newp[3];
+        vx[0] = d1[0]; vx[1] = d1[1]; vx[2] = d1[2];
+        vy[0] = d2[0]; vy[1] = d2[1]; vy[2] = d2[2];
+        vz[0] = normal[0]; vz[1] = normal[1]; vz[2] = normal[2];
+        vtkMath::MultiplyScalar(vx, x);
+        vtkMath::MultiplyScalar(vy, newy);
+        vtkMath::MultiplyScalar(vz, newz);
+        vtkMath::Add(origin, vx, temp1);
+        vtkMath::Add(temp1, vy, temp2);
+        vtkMath::Add(temp2, vz, newp);
+        rightoverlapnewpoints->InsertNextPoint(newp);
+        //aver += r;
+            //std::cout<<newp[0]<<" "<<newp[1]<<" "<<newp[2]<<endl;
+    }
+    rightoverlap->SetPoints(rightoverlapnewpoints);
+    vtkSmartPointer<vtkPolyDataMapper> rightoverlapmapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    rightoverlapmapper->SetInputData(rightoverlap);
+    rightoverlapmapper->Update();
+    vtkSmartPointer<vtkActor> rightoverlapactor = vtkSmartPointer<vtkActor>::New();
+    rightoverlapactor->SetMapper(rightoverlapmapper);
+
+
     leftpart->SetPoints(leftnewpoints);
 
+
     vtkSmartPointer<vtkPolyData> rightpart = vtkSmartPointer<vtkPolyData>::New();
-    vtkMath::MultiplyScalar(normal, -1);
     clipPlane->SetNormal(normal);
+    clipper->RemoveAllInputs();
+    clipper->SetInputData(m_colon->GetOutput());
     clipper->SetClipFunction(clipPlane);
     clipper->Update();
     rightpart->DeepCopy(clipper->GetOutput());
@@ -621,7 +676,8 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     if(test)
     {
         m_rendermanager_right->GetRender()->AddActor(selectedActor);
-        m_rendermanager_right->GetRender()->AddActor(edgeActor);
+        //m_rendermanager_right->GetRender()->AddActor(edgeActor);
+        m_rendermanager_right->GetRender()->AddActor(rightoverlapactor);
         vtkSmartPointer<vtkWindowToImageFilter> screenshot = vtkSmartPointer<vtkWindowToImageFilter>::New();
         screenshot->SetInput(right->GetRenderWindow());
         screenshot->SetMagnification(2);
@@ -658,7 +714,7 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     //m_showselectedwindow.show();
     //m_showselectedwindow.RenderSelected(selectedActor);
 
-    //m_filemanager->SaveFile(bended, "openedcolontextured.off", test);
+    m_filemanager->SaveFile(bended, "openedcolon.off", test);
 
     //m_showselectedwindow.RenderSelected(edgeActor);
     //m_showselectedwindow.GetRenderManager().GetRender()->SetBackground(0.1, 0.6, 1);
