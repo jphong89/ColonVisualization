@@ -225,18 +225,18 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     m_filemanager->LoadNewFile(filePath);
     m_centerline->Object::SetInput(m_filemanager->getfile());
     // Uniform Sampling
-    m_centerline->UniformSample(200);
+    m_centerline->UniformSample(400);
     // Gaussian Smoothing
     //m_centerline->SmoothCenterline(3);
     //m_filemanager->SaveFile(m_centerline->GetOutput(), "SmoothedCenterline.vtp");
     // Centerline-Driven Colon Deformation
 
     // get the origin point
-    /*
+
     double p[3];
     m_centerline->GetOutput()->GetPoint(0, p);
     std::cout<<p[0]<<" "<<p[1]<<" "<<p[2]<<endl;
-    */
+
 
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
     newColonPoly = m_centerline->EliminateTorsion(m_rendermanager,m_rendermanager_right, m_colon->GetOutput(), m_filemanager);
@@ -333,12 +333,20 @@ vtkSmartPointer<vtkPolyData> MainWindow::Upsampling(vtkSmartPointer<vtkPolyData>
 
 void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
-    test = true;
-    double factor = 4.0, r0 = 18.5793, adjust = 0.75;
-    double k = 0.5, b;
+    test = false;
+    double factor = 2.0, adjust = 0.75;
+    //double r0 = 18.5793;
+    double r0 = 1.01247;
+
+    double k, b;
+    k=0.5;
+    k=1;
+
     b = r0*(1-k);
     double aver = 0;
-    double origin[3] = {667.6, 491.462, -213.051}, normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
+    //double origin[3] = {667.6, 491.462, -213.051};
+    double origin[3] = {0.00419734, 0.443927, -0.148548};
+    double normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
     double overlapangle = 45.0 / 180.0 * 3.1415926;
     double normal_r[3]; normal_r[0] = 0; normal_r[1] = -sin(overlapangle); normal_r[2] = cos(overlapangle);
     double normal_l[3]; normal_l[0] = 0; normal_l[1] = -sin(overlapangle); normal_l[2] = -cos(overlapangle);
@@ -816,7 +824,7 @@ void MainWindow::on_horizontalScrollBar_sliderMoved(int position)
     m_oldcenterline->GetPoint(position, p_l);
     m_oldplanenormals->GetTuple(position, n_l);
     polygonSource_l->SetNumberOfSides(50);
-    polygonSource_l->SetRadius(40);
+    polygonSource_l->SetRadius(2); // 40 for colon
     polygonSource_l->SetCenter(p_l);
     polygonSource_l->SetNormal(n_l);
     polygonSource_l->Update();
@@ -831,7 +839,7 @@ void MainWindow::on_horizontalScrollBar_sliderMoved(int position)
     m_newcenterline->GetPoint(position, p_r);
     m_newplanenormals->GetTuple(position, n_r);
     polygonSource_r->SetNumberOfSides(50);
-    polygonSource_r->SetRadius(40);
+    polygonSource_r->SetRadius(2); // 40 for colon
     polygonSource_r->SetCenter(p_r);
     polygonSource_r->SetNormal(n_r);
     polygonSource_r->Update();

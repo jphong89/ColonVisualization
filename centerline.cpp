@@ -977,11 +977,12 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkDoubleArray> PlaneNormals = vtkSmartPointer<vtkDoubleArray>::New(); PlaneNormals->SetNumberOfComponents(3); PlaneNormals->SetNumberOfTuples(model->GetNumberOfPoints());
 
     // Smooth Centerline
-
-    for(int i = 0; i < 8; i++)
+    /*
+    for(int i = 0; i < 20; i++)
     {
         SmoothCenterline(3, NULL);
     }
+    */
 
 
     int MaxIter = 1; int modify = 0; // if modify==1 do one more loop to visualize the effect of the very last modification
@@ -1570,7 +1571,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Add(cp, et, end);
         EndPoints->SetPoint(i, end);
     }
-    VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
+    //VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
 
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
@@ -2878,7 +2879,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 0; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
+    int choice = 2; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
     double translate = 0;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -2966,7 +2967,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             }
             ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
 
-            double p = S->GetValue(i) / S->GetValue(model->GetNumberOfPoints()-1);
+            double p = S->GetValue(i) / S->GetValue(model->GetNumberOfPoints()-1) / 2; // divide by 2 to be half a circle
             double x = sin(2*3.1415926*p);
             double y = cos(2*3.1415926*p);
             tangent[0] = x; tangent[1] = y; tangent[2] = 0;
@@ -3376,14 +3377,14 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     t_rendermanager->renderModel(testActor);
     */
 
-    /*
+
     vtkSmartPointer<vtkPolyDataMapper> OriginCutCircleMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     OriginCutCircleMapper->SetInputData(OriginCutCircle);
     OriginCutCircleMapper->Update();
     vtkSmartPointer<vtkActor> OriginCutCircleActor = vtkSmartPointer<vtkActor>::New();
     OriginCutCircleActor->SetMapper(OriginCutCircleMapper);
     OriginCutCircleActor->GetProperty()->SetColor(0, 0.5, 1);
-    OriginCutCircleActor->GetProperty()->SetLineWidth(4);
+    OriginCutCircleActor->GetProperty()->SetLineWidth(2);
     t_rendermanager->renderModel(OriginCutCircleActor);
 
     vtkSmartPointer<vtkPolyDataMapper> CutCircleLineUpMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -3392,9 +3393,9 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkSmartPointer<vtkActor> CutCircleLineUpActor = vtkSmartPointer<vtkActor>::New();
     CutCircleLineUpActor->SetMapper(CutCircleLineUpMapper);
     CutCircleLineUpActor->GetProperty()->SetColor(1, 0, 0);
-    CutCircleLineUpActor->GetProperty()->SetLineWidth(4);
+    CutCircleLineUpActor->GetProperty()->SetLineWidth(2);
     t_rendermanager_right->renderModel(CutCircleLineUpActor);
-    */
+
 
     // deformation of surface begin
     // place the seed
@@ -3738,8 +3739,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         //std::cout<<"numberoflandmarks="<<sourcePoints->GetNumberOfPoints()<<" "<<targetPoints->GetNumberOfPoints()<<endl;
         landmarkTransform->SetSourceLandmarks(sourcePoints);
         landmarkTransform->SetTargetLandmarks(targetPoints);
-        //landmarkTransform->SetModeToAffine();
-        landmarkTransform->SetModeToSimilarity();
+        landmarkTransform->SetModeToAffine();
+        //landmarkTransform->SetModeToSimilarity();
         //landmarkTransform->SetModeToRigidBody();
         landmarkTransform->Update();
         vtkSmartPointer<vtkTransformFilter> transformFilter = vtkSmartPointer<vtkTransformFilter>::New();
@@ -3749,7 +3750,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         vtkSmartPointer<vtkPoints> affinePoints = vtkSmartPointer<vtkPoints>::New();
         affinePoints = transformFilter->GetOutput()->GetPoints();
 
-        if(i==174)
+        /*
+        if(i==165)
         {
             VisualizePoints(regionPoints, 0, 1, 0, 5, t_rendermanager);
             VisualizePoints(affinePoints, 0, 1, 0, 5, t_rendermanager_right);
@@ -3766,7 +3768,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
             if(vtkMath::Distance2BetweenPoints(z,p) > 50*50)
                 std::cout<<i<<endl;
         }
-
+*/
 
         for(int ii=0; ii < affinePoints->GetNumberOfPoints(); ii++)
         {
