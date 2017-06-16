@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <unistd.h>
+#include <ctime>
 
 namespace
 {
@@ -217,6 +218,7 @@ void MainWindow::on_actionNew_file_triggered()
 // centerline and colon deformation are done in this function
 void MainWindow::on_actionLoad_Centerline_triggered()
 {
+    clock_t begin = std::clock();
     //m_centerline->ConnectTwoContoursTest(m_rendermanager, m_filemanager);
     QString filePath = QFileDialog::getOpenFileName(
                 this, tr("Open File"),"",
@@ -240,6 +242,10 @@ void MainWindow::on_actionLoad_Centerline_triggered()
 
     vtkSmartPointer<vtkPolyData> newColonPoly = vtkSmartPointer<vtkPolyData>::New();
     newColonPoly = m_centerline->EliminateTorsion(m_rendermanager,m_rendermanager_right, m_colon->GetOutput(), m_filemanager);
+
+    clock_t end = std::clock();
+    std::cout<<"Time Elapsed: "<<(end-begin)/CLOCKS_PER_SEC<<endl;
+
     m_colon_new->Object::SetInput(newColonPoly);
 
     m_filemanager->SaveFile(m_centerline->GetOutput(), "ModifiedCenterline.vtp");
@@ -333,6 +339,7 @@ vtkSmartPointer<vtkPolyData> MainWindow::Upsampling(vtkSmartPointer<vtkPolyData>
 
 void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
+    clock_t begin = std::clock();
     test = false;
     double factor = 2.0, adjust = 0.75;
     //double r0 = 18.5793;
@@ -721,6 +728,9 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
 
     //m_showselectedwindow.show();
     //m_showselectedwindow.RenderSelected(selectedActor);
+
+    clock_t end = std::clock();
+    std::cout<<"Time Elapsed: "<<(double)(end-begin)/CLOCKS_PER_SEC<<endl;
 
     m_filemanager->SaveFile(bended, "openedcolon.off", test);
 
