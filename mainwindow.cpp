@@ -352,7 +352,8 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     b = r0*(1-k);
     double aver = 0;
     //double origin[3] = {667.6, 491.462, -213.051};
-    double origin[3] = {0.00419734, 0.443927, -0.148548};
+    //double origin[3] = {0.00419734, 0.443927, -0.148548};
+    double origin[3] = {0.994297, 11.2605, -2.25509};
     double normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
     double overlapangle = 45.0 / 180.0 * 3.1415926;
     double normal_r[3]; normal_r[0] = 0; normal_r[1] = -sin(overlapangle); normal_r[2] = cos(overlapangle);

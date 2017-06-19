@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vtkMath.h>
 #include <unistd.h>
+#include <ctime>
 
 Centerline::Centerline()
 {
@@ -986,6 +987,9 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
 
 
     int MaxIter = 1; int modify = 0; // if modify==1 do one more loop to visualize the effect of the very last modification
+
+    std::clock_t begin = std::clock();
+
     for(int iter = 0; iter < MaxIter + modify; iter++)
     {
         int N = model->GetNumberOfPoints();
@@ -1352,6 +1356,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         std::cout<<"Iteration Ends"<<endl;
     }
 
+    std::clock_t end = std::clock();
+    std::cout<<"Time elapsed for calculating cross sections: "<<(double)(begin-end)/CLOCKS_PER_SEC<<endl;;
     // visualize the ill cut circles
     /*
     vtkSmartPointer<vtkPolyDataMapper> IllCutCirclesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -3235,6 +3241,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     vtkPolyDataGroup* ResampledCircleGroup = new vtkPolyDataGroup;
     vtkPolyDataGroup* ResampledLineUpGroup = new vtkPolyDataGroup;
 
+    std::clock_t begin = std::clock();
+
     for(vtkIdType i = 0; i<model->GetNumberOfPoints(); i++)
     {
         double newp[3], oldp[3];
@@ -3348,6 +3356,8 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
         ResampledLineUpGroup->AddMember(cutCircle);
     }
 
+    std::clock_t end = std::clock();
+    std::cout<<(double)(end-begin)/CLOCKS_PER_SEC<<endl;
     /*
     vtkSmartPointer<vtkPolyData> test1 = vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> test2 = vtkSmartPointer<vtkPolyData>::New();
