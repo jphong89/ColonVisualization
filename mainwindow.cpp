@@ -227,7 +227,7 @@ void MainWindow::on_actionLoad_Centerline_triggered()
     m_filemanager->LoadNewFile(filePath);
     m_centerline->Object::SetInput(m_filemanager->getfile());
     // Uniform Sampling
-    m_centerline->UniformSample(400);
+    m_centerline->UniformSample(1000);
     // Gaussian Smoothing
     //m_centerline->SmoothCenterline(3);
     //m_filemanager->SaveFile(m_centerline->GetOutput(), "SmoothedCenterline.vtp");
@@ -340,7 +340,7 @@ vtkSmartPointer<vtkPolyData> MainWindow::Upsampling(vtkSmartPointer<vtkPolyData>
 void MainWindow::on_action_Deform_Colon_triggered(bool test)
 {
     clock_t begin = std::clock();
-    test = false;
+    test = true;
     double factor = 2.0, adjust = 0.75;
     //double r0 = 18.5793;
     double r0 = 1.01247;
@@ -352,8 +352,8 @@ void MainWindow::on_action_Deform_Colon_triggered(bool test)
     b = r0*(1-k);
     double aver = 0;
     //double origin[3] = {667.6, 491.462, -213.051};
-    //double origin[3] = {0.00419734, 0.443927, -0.148548};
-    double origin[3] = {0.994297, 11.2605, -2.25509};
+    double origin[3] = {0.00419734, 0.443927, -0.148548};
+    //double origin[3] = {0.994297, 11.2605, -2.25509};
     double normal[3] = {0,0,1}, d1[3] = {1,0,0}, d2[3] = {0,1,0};
     double overlapangle = 45.0 / 180.0 * 3.1415926;
     double normal_r[3]; normal_r[0] = 0; normal_r[1] = -sin(overlapangle); normal_r[2] = cos(overlapangle);
@@ -835,7 +835,7 @@ void MainWindow::on_horizontalScrollBar_sliderMoved(int position)
     m_oldcenterline->GetPoint(position, p_l);
     m_oldplanenormals->GetTuple(position, n_l);
     polygonSource_l->SetNumberOfSides(50);
-    polygonSource_l->SetRadius(2); // 40 for colon
+    polygonSource_l->SetRadius(40); // 40 for colon; 2 for stomach
     polygonSource_l->SetCenter(p_l);
     polygonSource_l->SetNormal(n_l);
     polygonSource_l->Update();
@@ -850,7 +850,7 @@ void MainWindow::on_horizontalScrollBar_sliderMoved(int position)
     m_newcenterline->GetPoint(position, p_r);
     m_newplanenormals->GetTuple(position, n_r);
     polygonSource_r->SetNumberOfSides(50);
-    polygonSource_r->SetRadius(2); // 40 for colon
+    polygonSource_r->SetRadius(40); // 40 for colon; 2 for stomach
     polygonSource_r->SetCenter(p_r);
     polygonSource_r->SetNormal(n_r);
     polygonSource_r->Update();
@@ -906,4 +906,94 @@ void MainWindow::on_action_Load_Centerlines_triggered()
     m_rendermanager_right->renderModel(m_sweepingplane_r->GetActor());
     QVTKWidget* right = this->findChild<QVTKWidget*>("right");
     right->GetRenderWindow()->Render();
+}
+
+void MainWindow::on_action_Load_Ridge_and_Valley_triggered()
+{
+    QString filePath = QFileDialog::getOpenFileName(
+                this, tr("Open File"),"",
+                tr("Ridge & Valley (*.txt)"));
+
+    if(filePath.isEmpty()) return;
+    ifstream file;
+    file.open(filePath.toStdString().c_str());
+
+    vtkSmartPointer<vtkPolyData> ridges = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+    vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
+
+    int count = 0;
+    while(file){
+        double v0[3], v1[3];
+        file >> v0[0] >> v0[1] >> v0[2] >> v1[0] >> v1[1] >> v1[2];
+        //std::cout<<count++<<":  "<<v0[0]<<" "<<v0[1]<<" "<<v0[2]<<" "<<v1[0]<<" "<<v1[1]<<" "<<v1[2]<<std::endl;
+
+        points->InsertNextPoint(v0);
+        points->InsertNextPoint(v1);
+
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        line->GetPointIds()->SetId(0, count*2);
+        line->GetPointIds()->SetId(1, count*2+1);
+        count++;
+        lines->InsertNextCell(line);
+
+    }
+    std::cout<<count<<" Segments"<<endl;
+
+    ridges->SetPoints(points);
+    ridges->SetLines(lines);
+    std::cout<<ridges->GetNumberOfPoints()<<" Points"<<endl;
+    
+
+    vtkSmartPointer<vtkCleanPolyData> cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleanFilter->SetInputData(ridges);
+    cleanFilter->Update();
+    ridges->DeepCopy(cleanFilter->GetOutput());
+
+    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectivityFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    connectivityFilter->SetInputData(ridges);
+    //connectivityFilter->SetInputConnection(appendFilter->GetOutputPort());
+    connectivityFilter->SetExtractionModeToAllRegions();
+    connectivityFilter->Update();
+    std::cout<<connectivityFilter->GetNumberOfExtractedRegions()<<" Regions"<<endl;
+
+    vtkSmartPointer<vtkCleanPolyData> removeextrapoints = vtkSmartPointer<vtkCleanPolyData>::New();
+    removeextrapoints->SetInputConnection(connectivityFilter->GetOutputPort());
+
+    int NumberOfRidges = connectivityFilter->GetNumberOfExtractedRegions();
+
+    vtkSmartPointer<vtkPolyData> ridge = vtkSmartPointer<vtkPolyData>::New();
+    connectivityFilter->SetExtractionModeToSpecifiedRegions();
+    for(int i = 0; i < NumberOfRidges; i++){
+        if(i > 0) connectivityFilter->DeleteSpecifiedRegion(i-1);
+        connectivityFilter->AddSpecifiedRegion(i);
+        connectivityFilter->Update();
+
+        removeextrapoints->Update();
+
+        std::cout<<"Ridge "<<i<<": "<<removeextrapoints->GetOutput()->GetNumberOfPoints()<<" "<<removeextrapoints->GetOutput()->GetNumberOfLines()<<endl;
+        if(removeextrapoints->GetOutput()->GetNumberOfPoints() == removeextrapoints->GetOutput()->GetNumberOfLines()) std::cout<<"Loop"<<endl;
+
+        if(i == 800){
+            ridge->DeepCopy(removeextrapoints->GetOutput());
+            for(int j = 0; j < ridge->GetNumberOfLines(); j++){
+                std::cout<<j<<" "<<ridge->GetCell(j)->GetPointIds()->GetId(0)<<" "<<ridge->GetCell(j)->GetPointIds()->GetId(1)<<endl;
+            }
+        }
+    }
+
+    vtkSmartPointer<vtkPolyDataMapper> ridgeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    std::cout<<ridge->GetNumberOfPoints()<<endl;
+    ridgeMapper->SetInputData(ridge);
+    ridgeMapper->Update();
+
+    vtkSmartPointer<vtkActor> ridgeActor = vtkSmartPointer<vtkActor>::New();
+    ridgeActor->SetMapper(ridgeMapper);
+    ridgeActor->GetProperty()->SetLineWidth(3);
+    ridgeActor->GetProperty()->SetColor(0, 1, 1);
+    ridgeActor->GetProperty()->SetRepresentationToWireframe();
+
+    m_rendermanager->renderModel(ridgeActor);
+    QVTKWidget* left = this->findChild<QVTKWidget*>("left");
+    left->GetRenderWindow()->Render();
 }

@@ -14,6 +14,7 @@
 #include <vtkTransform.h>
 #include <vtkTransformFilter.h>
 #include <vtkCutter.h>
+#include <vtkConnectivityFilter.h>
 #include <vtkPolyDataConnectivityFilter.h>
 #include <vtkCellLocator.h>
 #include <vtkPointLocator.h>
@@ -121,6 +122,8 @@ private slots:
     void on_horizontalScrollBar_sliderMoved(int position);
 
     void on_action_Load_Centerlines_triggered();
+
+    void on_action_Load_Ridge_and_Valley_triggered();
 
 private:
     Ui::MainWindow *ui;
