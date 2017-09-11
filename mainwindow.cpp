@@ -983,8 +983,8 @@ void MainWindow::on_action_Load_Ridge_and_Valley_triggered()
     }
 
     vtkSmartPointer<vtkPolyDataMapper> ridgeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    std::cout<<ridge->GetNumberOfPoints()<<endl;
-    ridgeMapper->SetInputData(ridge);
+    std::cout<<ridges->GetNumberOfPoints()<<endl;
+    ridgeMapper->SetInputData(ridges);
     ridgeMapper->Update();
 
     vtkSmartPointer<vtkActor> ridgeActor = vtkSmartPointer<vtkActor>::New();
