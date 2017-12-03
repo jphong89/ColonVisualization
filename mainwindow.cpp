@@ -184,6 +184,7 @@ void MainWindow::on_actionNew_file_triggered()
 
     m_filemanager->LoadNewFile(filePath);
     m_colon->Object::SetInput(m_filemanager->getfile());
+    m_filemanager->SaveFile(m_colon->GetOutput(), "original.ply");
 
     m_rendermanager->renderModel(m_colon->GetActor());
     QVTKWidget* left = this->findChild<QVTKWidget*>("left");

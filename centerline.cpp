@@ -978,12 +978,12 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkDoubleArray> PlaneNormals = vtkSmartPointer<vtkDoubleArray>::New(); PlaneNormals->SetNumberOfComponents(3); PlaneNormals->SetNumberOfTuples(model->GetNumberOfPoints());
 
     // Smooth Centerline
-    /*
+
     for(int i = 0; i < 20; i++)
     {
         SmoothCenterline(3, NULL);
     }
-    */
+
 
 
     int MaxIter = 1; int modify = 0; // if modify==1 do one more loop to visualize the effect of the very last modification
@@ -2885,7 +2885,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
 
     //PutNormalsOnSameSide(Normals, Curvatures);
     std::cout<<"Deformation"<<endl;
-    int choice = 0; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
+    int choice = 3; // 0-straight(stretch or press); 1-sin; 2-circle; 3-helix; 4-twist; 5-L-shape; 6-waterpipe
     double translate = 0;
     // Eliminate the torsion by growing the curve on a plane, according to: -dNnew/dSnew = -k*Tnew
     double point[3], nextpoint[3];
@@ -3793,7 +3793,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     }
 
     OptimizationInitial->SetPoints(OptimizationInitialPoints);
-    t_filemanager->SaveFile(OptimizationInitial, "OptimizationInitial.off");
+    t_filemanager->SaveFile(OptimizationInitial, "OptimizationInitial.ply");
     vtkSmartPointer<vtkPolyData> OptimizedSurface = vtkSmartPointer<vtkPolyData>::New();
     //OptimizedSurface = Optimize(OptimizationInitial, SurfaceLineUp, Is_Fixed, t_rendermanager);
     OptimizedSurface->DeepCopy(OptimizationInitial);
@@ -3817,6 +3817,7 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_1(vtkSmartPointer<vtkDou
     optimizedActor->GetProperty()->SetOpacity(0.5);
     //t_rendermanager_right->renderModel(optimizedActor);
 
+    t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.ply");
     t_filemanager->SaveFile(OptimizedSurface, "OptimizedSurface.off");
 
     free(Is_Fixed);

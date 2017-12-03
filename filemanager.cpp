@@ -104,6 +104,13 @@ void FileManager::SaveFile(vtkSmartPointer<vtkPolyData> polydata, char *filename
     {
         writeFileOff(polydata, filename, colored);
     }
+    else if(strstr(filename, ".ply")!=NULL)
+    {
+        vtkSmartPointer<vtkPLYWriter> writer = vtkSmartPointer<vtkPLYWriter>::New();
+        writer->SetFileName(filename);
+        writer->SetInputData(polydata);
+        writer->Write();
+    }
 }
 
 void FileManager::writeFileOff(vtkSmartPointer<vtkPolyData> polydata, const char *filename, bool colored)
