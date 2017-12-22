@@ -4,6 +4,7 @@
 #include "centerline.h"
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/IterativeSolvers>
+#include <Eigen/IterativeLinearSolvers>
 #include <vtkExtractEdges.h>
 #include <vector>
 #include <omp.h>
