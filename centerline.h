@@ -63,10 +63,10 @@ public:
     void GaussianNormals(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkDoubleArray> Tangents, double std);
     void UniformSample(int resolution, vtkSmartPointer<vtkPolyData> line = NULL);
     void splineTangent(double *tangent, vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize);
-    void splinePosition_analytic(double *p, double t_u, std::vector<std::vector<double>>& Zs,
-                                 vtkSmartPointer<vtkDoubleArray> U, std::vector<double>& h, std::vector<std::vector<double>>& ys);
-    void splineTangent_analytic(double *tangent, double t_u, std::vector<std::vector<double>>& Zs,
-                                vtkSmartPointer<vtkDoubleArray> U, std::vector<double>& h, std::vector<std::vector<double>>& ys);
+    void splinePosition_analytic(double *p, double t_u, std::vector<std::vector<double> >& Zs,
+                                 vtkSmartPointer<vtkDoubleArray> U, std::vector<double>& h, std::vector<std::vector<double> >& ys);
+    void splineTangent_analytic(double *tangent, double t_u, std::vector<std::vector<double> >& Zs,
+                                vtkSmartPointer<vtkDoubleArray> U, std::vector<double>& h, std::vector<std::vector<double> >& ys);
     void splineNormal(double *normal, vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize, double &curvature);
     void PutNormalsOnSameSide(vtkSmartPointer<vtkDoubleArray> Normals, vtkSmartPointer<vtkDoubleArray> Curvatures);
     double splineTorsion(vtkSmartPointer<vtkParametricSpline> spline, double t_u, double stepsize);
@@ -101,8 +101,9 @@ public:
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager, RenderManager *t_rendermanager_right,
                                              vtkSmartPointer<vtkDoubleArray> PlaneOriginals, vtkSmartPointer<vtkDoubleArray> PlaneNormals,
-                                             std::vector<std::vector<double>>& Zs, std::vector<double>& h, std::vector<std::vector<double>>& ys,
+                                             std::vector<std::vector<double> >& Zs, std::vector<double>& h, std::vector<std::vector<double> >& ys,
                                              vtkSmartPointer<vtkDoubleArray> RefDirections, FileManager* t_filemanager);
+    void SingleDisplacement(double* newp, double t, double L, double *p, double *pc, double* normalp, double* tangentp, double* x0, int choice = 0);
     vtkSmartPointer<vtkPolyData> Deformation_v4(vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures,
                                              vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                              vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager,

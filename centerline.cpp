@@ -304,7 +304,7 @@ void Centerline::UniformSample(int resolution, vtkSmartPointer<vtkPolyData> line
     }
 }
 void Centerline::splinePosition_analytic(double *p, double t_u, std::vector<std::vector<double> > &Zs,
-                                        vtkSmartPointer<vtkDoubleArray> U, std::vector<double> &h, std::vector<std::vector<double>>& ys){
+                                        vtkSmartPointer<vtkDoubleArray> U, std::vector<double> &h, std::vector<std::vector<double> >& ys){
     // first figure out which segment does t belongs to
     int i = 0;
     assert(U->GetNumberOfValues() == model->GetNumberOfPoints());
@@ -322,7 +322,7 @@ void Centerline::splinePosition_analytic(double *p, double t_u, std::vector<std:
     return;
 }
 void Centerline::splineTangent_analytic(double *tangent, double t_u, std::vector<std::vector<double> > &Zs,
-                                        vtkSmartPointer<vtkDoubleArray> U, std::vector<double> &h, std::vector<std::vector<double>>& ys){
+                                        vtkSmartPointer<vtkDoubleArray> U, std::vector<double> &h, std::vector<std::vector<double> >& ys){
     // first figure out which segment does t belongs to
     int i = 0;
     assert(U->GetNumberOfValues() == model->GetNumberOfPoints());
@@ -1023,8 +1023,8 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
     vtkSmartPointer<vtkPolyData> NormalCutCircles = vtkSmartPointer<vtkPolyData>::New();
 
     int n = model->GetNumberOfPoints() - 1;
-    std::vector<std::vector<double>> Zs; // second derivatives on n+1 knots
-    std::vector<std::vector<double>> ys (3, std::vector<double>(model->GetNumberOfPoints(),0));
+    std::vector<std::vector<double> > Zs; // second derivatives on n+1 knots
+    std::vector<std::vector<double> > ys (3, std::vector<double>(model->GetNumberOfPoints(),0));
     std::vector<double> h(n+1, 0);
 
     vtkSmartPointer<vtkDoubleArray> PlaneOriginals = vtkSmartPointer<vtkDoubleArray>::New(); PlaneOriginals->SetNumberOfComponents(3); PlaneOriginals->SetNumberOfTuples(model->GetNumberOfPoints());
@@ -1679,7 +1679,7 @@ vtkSmartPointer<vtkPolyData> Centerline::EliminateTorsion(RenderManager* t_rende
         vtkMath::Add(cp, et, end);
         EndPoints->SetPoint(i, end);
     }
-    //VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
+    VisualizeSpoke(EndPoints, ViolationNums, t_rendermanager);
 
     // entrance to deformation versions
     //return Deformation_v2(S, Curvatures,Tangents, Normals, t_colon, t_rendermanager, PlaneOriginals, PlaneNormals, RefDirections, t_filemanager);
@@ -4568,6 +4568,39 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_2(vtkSmartPointer<vtkDou
     std::cout<<"Deformation End"<<endl;
     return SurfaceLineUp;
 }
+
+void Centerline::SingleDisplacement(double *newp, double t, double L, double *p, double *pc, double *normalp, double *tangentp, double *x0, int choice){
+    assert(t>=0 && t <= 1);
+    vtkMath::Normalize(normalp);
+    vtkMath::Normalize(tangentp);
+    double binormalp[3];
+    vtkMath::Cross(tangentp, normalp, binormalp);
+
+    double newpc[3];
+    double tangent[3], normal[3], binormal[3];
+    if(choice == 0){
+        tangent[0] = 1; tangent[1] = 0; tangent[2] = 0;
+
+        normal[0] = 0; normal[1] = 1; normal[2] = 0;
+
+        binormal[0] = 0; binormal[1] = 0; binormal[2] = 1;
+
+        double temp[3];
+        temp[0] = L * t * tangent[0]; temp[1] =  L * t * tangent[1]; temp[2] =  L * t * tangent[2];
+        vtkMath::Add(x0, temp, newpc);
+    }
+
+    double v[3], vx[3], vy[3];
+    vtkMath::Subtract(p, pc, v);
+    double xcoord = vtkMath::Dot(v, normalp);
+    double ycoord = vtkMath::Dot(v, binormalp);
+    vx[0] = normal[0] * xcoord; vx[1] = normal[1] * xcoord; vx[2] = normal[2] * xcoord;
+    vy[0] = binormal[0] * ycoord; vy[1] = binormal[1] * ycoord; vy[2] = binormal[2] * ycoord;
+    newp[0] = vx[0] + vy[0] + newpc[0];
+    newp[1] = vx[1] + vy[1] + newpc[1];
+    newp[2] = vx[2] + vy[2] + newpc[2];
+}
+
 vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_3(vtkSmartPointer<vtkDoubleArray> U, vtkSmartPointer<vtkDoubleArray> S, vtkSmartPointer<vtkDoubleArray> Curvatures, vtkSmartPointer<vtkIdList> CurvaturePointIds,
                                                           vtkSmartPointer<vtkDoubleArray> Tangents, vtkSmartPointer<vtkDoubleArray> Normals,
                                                           vtkSmartPointer<vtkPolyData> t_colon, RenderManager *t_rendermanager, RenderManager *t_rendermanager_right,
@@ -4846,58 +4879,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_3(vtkSmartPointer<vtkDou
             point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
         }
     }
-    /*
-    for(vtkIdType i=0; i<model->GetNumberOfPoints(); i++)
-    {
-        if(i == 0)
-        {
-            model->GetPoint(0, point);
-            point[0] = point[0] + 60;
-            binormal[0] = 0;
-            binormal[1] = 0;
-            binormal[2] = 1;
-            tangent[0] = 1;
-            tangent[1] = 0;
-            tangent[2] = 0;
-            normal[0] = 0;
-            normal[1] = 1;
-            normal[2] = 0;
-        }
-        ds = (i != model->GetNumberOfPoints()-1)?(S->GetValue(i + 1) - S->GetValue(i)):0;
-        curvature = Curvatures->GetValue(i);
-
-        // Record the New Axis System
-        NewTangents->InsertNextTuple(tangent);
-        NewNormals->InsertNextTuple(normal);
-        NewBinormals->InsertNextTuple(binormal);
-
-
-        double dnormal[3];
-        if(straight)
-        {
-            dnormal[0] = 0; dnormal[1] = 0; dnormal[2] = 0;
-        }
-        else
-        {
-            dnormal[0] = tangent[0]; dnormal[1] = tangent[1]; dnormal[2] = tangent[2];
-            double RelaxationFactor = 2;
-            vtkMath::MultiplyScalar(dnormal, -curvature / RelaxationFactor);
-        }
-        vtkMath::Add(normal, dnormal, nextnormal);
-        vtkMath::Normalize(nextnormal);
-
-        //std::cout<<i<<"\ts="<<S->GetValue(i)<<"("<<ds<<")"<<"\tk="<<curvature<<endl;
-        vtkMath::Cross(nextnormal, binormal, nexttangent);
-        vtkMath::Normalize(nexttangent);
-        vtkMath::MultiplyScalar(tangent, ds);
-        vtkMath::Add(point, tangent, nextpoint);
-        newpoints->InsertNextPoint(point);
-
-        point[0] = nextpoint[0]; point[1] = nextpoint[1]; point[2] = nextpoint[2];
-        normal[0] = nextnormal[0]; normal[1] = nextnormal[1]; normal[2] = nextnormal[2];
-        tangent[0] = nexttangent[0]; tangent[1] = nexttangent[1]; tangent[2] = nexttangent[2];
-    }
-    */
 
     vtkSmartPointer<vtkPolyData> newcenterline = vtkSmartPointer<vtkPolyData>::New();
     newcenterline->DeepCopy(model);
@@ -5315,25 +5296,164 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_3(vtkSmartPointer<vtkDou
 
     // calculate the displacements of the fixed points analytically
     int test = 0;
+    vtkSmartPointer<vtkPolyData> OptimizationInitial = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPoints> OptimizationInitialPoints = vtkSmartPointer<vtkPoints>::New();
+    OptimizationInitial->DeepCopy(SurfaceLineUp);
+    OptimizationInitialPoints->DeepCopy(OptimizationInitial->GetPoints());
+
+
     vtkSmartPointer<vtkPoints> testpoints = vtkSmartPointer<vtkPoints>::New();
     for(int i = 0; i < t_colon->GetNumberOfPoints(); i++){
         double t0;
         if(Is_Fixed[i] && csids[i] >= 0){
             t0 = U->GetValue(csids[i]);
-            double p[3];
+            double p[3], v0[3];
             t_colon->GetPoint(i, p);
             double p0[3];
-            std::cout<<i<<" "<<csids[i]<<" "<<t0<<endl;
+            vtkMath::Subtract(p, p0, v0);
+            //std::cout<<i<<" "<<csids[i]<<" "<<t0<<endl;
             splinePosition_analytic(p0, t0, Zs, U, h, ys);
 
-            if(test == 0){
-                testpoints->InsertNextPoint(p);
-                testpoints->InsertNextPoint(p0);
+            double tangent0[3];
+            splineTangent_analytic(tangent0, t0, Zs, U, h, ys);
+
+            int ida, idb;
+            double ta, tb, u, v;
+            double p1[3], tangent1[3], v1[3];
+            bool flag = true;
+
+            assert(csids[i] >=0 && csids[i] < model->GetNumberOfPoints());
+            // find the a and b for the bisection method
+            if(vtkMath::Dot(tangent0, v0) >= 0){
+                ida = csids[i];
+                idb = csids[i] + 1;
+                do{
+                    if(idb >= model->GetNumberOfPoints()){
+                        flag = false;
+                        break;
+                    }
+                    ta = U->GetValue(ida);
+                    tb = U->GetValue(idb);
+                    model->GetPoint(idb, p1);
+                    splineTangent_analytic(tangent1, tb, Zs, U, h, ys);
+                    vtkMath::Subtract(p, p1, v1);
+                    idb++;
+                }while(vtkMath::Dot(tangent1, v1) >=0);
+                idb--;
+                u = vtkMath::Dot(tangent0, v0);
+                v = vtkMath::Dot(tangent1, v1);
             }
-            test++;
+            else{
+                ida = csids[i] - 1;
+                idb = csids[i];
+                do{
+                    if(ida < 0){
+                        flag = false;
+                        break;
+                    }
+                    ta = U->GetValue(ida);
+                    tb = U->GetValue(idb);
+                    model->GetPoint(ida, p1);
+                    splineTangent_analytic(tangent1, ta, Zs, U, h, ys);
+                    vtkMath::Subtract(p, p1, v1);
+                    ida--;
+                }while(vtkMath::Dot(tangent1, v1) < 0);
+                ida++;
+                u = vtkMath::Dot(tangent1, v1);
+                v = vtkMath::Dot(tangent0, v0);
+            }
+
+            double t, pc[3];
+            if(flag){
+                std::cout<<i<<": "<<ta<<"------>"<<tb<<" -----> ";
+                double a = ta, b = tb, c, w;
+                double e = b - a;
+                double eps = 1.0e-10;
+                int M = 1000;
+                assert(u * v <= 0);
+                for(int k = 1; k <= M; k++){
+                    e = e / 2.0;
+                    double abse = (e >= 0) ? e : -e;
+                    c = a + e;
+                    // evaluate w
+                    double pw[3], vw[3], tangentw[3];
+                    splinePosition_analytic(pw, c, Zs, U, h, ys);
+                    splineTangent_analytic(tangentw, c, Zs, U, h, ys);
+                    vtkMath::Subtract(p, pw, vw);
+                    w = vtkMath::Dot(tangentw, vw);
+                    if(abse < eps) break;
+                    if(w * u < 0){
+                        b = c;
+                        v = w;
+                    }
+                    else{
+                        a = c;
+                        u = w;
+                    }
+                }
+
+                t = c;
+                splinePosition_analytic(pc, t, Zs, U, h, ys);
+                std::cout<<c<<endl;
+
+                // calculate single rotation minimizing frame on t
+                double r[3];
+                {
+
+                    double lastx[3], x[3], v1[3], v1r[3], v1t[3];
+                    model->GetPoint(ida, lastx);
+                    x[0] = pc[0]; x[1] = pc[1]; x[2] = pc[2];
+                    double lastr[3], lastt[3];
+                    RefDirections->GetTuple(ida, lastr);
+                    PlaneNormals->GetTuple(ida, lastt);
+
+                    vtkMath::Subtract(x, lastx, v1);
+                    double c1 = vtkMath::Dot(v1, v1);
+                    double c1r = 2/c1 * vtkMath::Dot(v1, lastr);
+                    double c1t = 2/c1 * vtkMath::Dot(v1, lastt);
+                    v1r[0] = c1r * v1[0]; v1r[1] = c1r * v1[1]; v1r[2] = c1r * v1[2];
+                    v1t[0] = c1t * v1[0]; v1t[1] = c1t * v1[1]; v1t[2] = c1t * v1[2];
+
+                    double rL[3], tL[3];
+                    vtkMath::Subtract(lastr, v1r, rL);
+                    vtkMath::Subtract(lastt, v1t, tL);
+
+                    double tangentc[3], v2[3], v2r[3];
+                    splineTangent_analytic(tangentc, t, Zs, U, h, ys);
+                    vtkMath::Subtract(tangentc, tL, v2);
+                    double c2 = vtkMath::Dot(v2, v2);
+                    double c2r = 2/c2 * vtkMath::Dot(v2, rL);
+                    v2r[0] = c2r * v2[0]; v2r[1] = c2r * v2[1]; v2r[2] = c2r * v2[2];
+
+                    vtkMath::Subtract(rL, v2r, r);
+
+                    double end[3];
+                    vtkMath::MultiplyScalar(r, 2);
+                    vtkMath::Add(pc, r, end);
+                    //testpoints->InsertNextPoint(end);
+                }
+
+                double newp[3], tangentp[3], x0[3];
+                model->GetPoint(0, x0);
+                splineTangent_analytic(tangentp, t, Zs, U, h, ys);
+                SingleDisplacement(newp, t, S->GetValue(S->GetNumberOfValues()-1), p, pc, r, tangentp, x0, 0);
+                testpoints->InsertNextPoint(newp);
+                OptimizationInitialPoints->SetPoint(i, newp);
+
+                if(test == 10 && 0){
+                    testpoints->InsertNextPoint(p);
+                    testpoints->InsertNextPoint(p0);
+                    testpoints->InsertNextPoint(pc);
+                }
+                test++;
+
+            }
+            else{
+                std::cout<<i<<": do nothing"<<endl;
+            }
         }
     }
-    VisualizePoints(testpoints, 255, 0, 0, 5, t_rendermanager);
+    VisualizePoints(testpoints, 255, 0, 0, 5, t_rendermanager_right);
 
     // output the centerline shape
     ofstream file;
@@ -5397,10 +5517,6 @@ vtkSmartPointer<vtkPolyData> Centerline::Deformation_v3_3(vtkSmartPointer<vtkDou
     std::cout<<"count="<<count<<" Number Of Unfixed Regions="<<NumberOfRegions<<endl;
 
     // Affine Transform
-    vtkSmartPointer<vtkPolyData> OptimizationInitial = vtkSmartPointer<vtkPolyData>::New();
-    vtkSmartPointer<vtkPoints> OptimizationInitialPoints = vtkSmartPointer<vtkPoints>::New();
-    OptimizationInitial->DeepCopy(SurfaceLineUp);
-    OptimizationInitialPoints->DeepCopy(OptimizationInitial->GetPoints());
 
     for(int i=0; i<NumberOfRegions; i++)
     {
